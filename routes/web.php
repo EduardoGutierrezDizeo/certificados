@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\LawyerController;
 use App\Http\Controllers\ConsultationRequestController;
 use App\Http\Controllers\ProfileController;
 use App\Models\ConsultationRequest;
@@ -16,6 +17,12 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/force-password', [ForcePasswordController::class, 'edit'])->name('password.force.edit');
     Route::put('/force-password', [ForcePasswordController::class, 'update'])->name('password.force.update');
+});
+
+Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/lawyers', [LawyerController::class, 'index'])->name('lawyers.index');
+    Route::get('/lawyers/create', [LawyerController::class, 'create'])->name('lawyers.create');
+    Route::post('/lawyers', [LawyerController::class, 'store'])->name('lawyers.store');
 });
 
 Route::middleware(['auth', 'role:abogado'])->group(function () {
