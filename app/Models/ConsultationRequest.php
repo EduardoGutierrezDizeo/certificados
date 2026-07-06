@@ -32,4 +32,21 @@ class ConsultationRequest extends Model
     {
         return $this->hasMany(CertificateRequest::class);
     }
+
+    public function refreshStatus(): void
+    {
+        $estados = $this->certificateRequests()->pluck('status');
+
+        if ($estados->contains('pending') || $estados->contains('processing')) {
+            $nuevoEstado = 'pending';
+        } elseif ($estados->every(fn ($e) => $e === 'success')) {
+            $nuevoEstado = 'success';
+        } elseif ($estados->every(fn ($e) => $e === 'failed')) {
+            $nuevoEstado = 'failed';
+        } else {
+            $nuevoEstado = 'partial';
+        }
+
+        $this->update(['status' => $nuevoEstado]);
+    }
 }

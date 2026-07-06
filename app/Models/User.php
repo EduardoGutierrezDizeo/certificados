@@ -47,4 +47,12 @@ class User extends Authenticatable
     {
         return $this->hasMany(ConsultationRequest::class, 'lawyer_id');
     }
+
+    public function hasActiveSubscription(): bool
+    {
+        return $this->subscriptions()
+            ->where('status', 'active')
+            ->where('ends_at', '>=', now())
+            ->exists();
+    }
 }
