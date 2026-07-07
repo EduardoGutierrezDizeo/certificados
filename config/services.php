@@ -39,4 +39,14 @@ return [
         ],
     ],
 
+    'wompi' => [
+        'public_key' => env('WOMPI_PUBLIC_KEY'),
+        'private_key' => env('WOMPI_PRIVATE_KEY'),
+        'integrity_secret' => env('WOMPI_INTEGRITY_SECRET'),
+        'events_secret' => env('WOMPI_EVENTS_SECRET'),
+        'sandbox' => env('WOMPI_SANDBOX', true),
+    ],
+
+    'subscription_price_cop' => env('SUBSCRIPTION_PRICE_COP', 50000),
+
 ];

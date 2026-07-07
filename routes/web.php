@@ -3,12 +3,13 @@
 use App\Http\Controllers\Admin\LawyerController;
 use App\Http\Controllers\ConsultationRequestController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SubscriptionController;
 use App\Models\ConsultationRequest;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\ForcePasswordController;
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('landing');
 });
 
 Route::middleware('auth')->group(function () {
@@ -25,7 +26,14 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/lawyers', [LawyerController::class, 'store'])->name('lawyers.store');
 });
 
-Route::middleware(['auth', 'role:abogado'])->group(function () {
+Route::middleware(['auth', 'verified', 'role:abogado'])->group(function () {
+    Route::get('/subscribe', [SubscriptionController::class, 'show'])->name('subscription.show');
+    Route::get('/subscribe/checkout', [SubscriptionController::class, 'checkout'])->name('subscription.checkout');
+    Route::get('/subscribe/return', [SubscriptionController::class, 'return'])->name('subscription.return');
+    Route::get('/subscribe/status', [SubscriptionController::class, 'status'])->name('subscription.status');
+});
+
+Route::middleware(['auth', 'verified', 'role:abogado', 'subscription.active'])->group(function () {
     Route::get('/dashboard', [ConsultationRequestController::class, 'create'])
         ->name('dashboard');
 

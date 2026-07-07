@@ -13,6 +13,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->trustProxies(at: '*');
+
         $middleware->web(append: [
             \App\Http\Middleware\ForcePasswordChange::class,
         ]);
@@ -20,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'internal.api' => \App\Http\Middleware\VerifyInternalApiKey::class,
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'force.password.change' => \App\Http\Middleware\ForcePasswordChange::class,
+            'subscription.active' => \App\Http\Middleware\EnsureSubscriptionActive::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
