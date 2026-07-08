@@ -19,6 +19,6 @@ class LawyerScope implements Scope
             return;
         }
 
-        $builder->where($model->getTable() . '.lawyer_id', Auth::id());
+        $builder->where($model->getTable().'.lawyer_id', Auth::id());
     }
 }

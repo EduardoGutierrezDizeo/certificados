@@ -15,6 +15,7 @@ class WompiWebhookController extends Controller
 
         if (! $signer->verifyEventChecksum($payload)) {
             Log::warning('Webhook de Wompi rechazado: checksum inválido', ['payload' => $payload]);
+
             return response()->json(['ok' => false], 401);
         }
 
@@ -26,6 +27,7 @@ class WompiWebhookController extends Controller
         $payment = Payment::where('reference', $transaction['reference'])->first();
         if (! $payment) {
             Log::warning('Webhook de Wompi: pago no encontrado', ['reference' => $transaction['reference']]);
+
             return response()->json(['ok' => true]);
         }
 

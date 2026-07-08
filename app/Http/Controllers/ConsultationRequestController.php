@@ -7,6 +7,8 @@ use App\Models\CertificateRequest;
 use App\Models\ConsultationRequest;
 use App\Models\Subject;
 use App\Services\CertificateJobDispatcher;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -31,7 +33,7 @@ class ConsultationRequestController extends Controller
                     'full_name' => $validated['full_name'] ?? null,
                     'company_name' => $validated['company_name'] ?? null,
                     'issuance_date' => isset($validated['issuance_date'])
-                        ? \Carbon\Carbon::createFromFormat('Y-m-d', $validated['issuance_date'])
+                        ? Carbon::createFromFormat('Y-m-d', $validated['issuance_date'])
                         : null,
                 ]
             );
@@ -39,7 +41,7 @@ class ConsultationRequestController extends Controller
             $subject->fill(array_filter([
                 'full_name' => $subject->full_name ?? ($validated['full_name'] ?? null),
                 'issuance_date' => $subject->issuance_date ?? (isset($validated['issuance_date'])
-                    ? \Carbon\Carbon::createFromFormat('Y-m-d', $validated['issuance_date'])
+                    ? Carbon::createFromFormat('Y-m-d', $validated['issuance_date'])
                     : null),
             ]))->save();
 
@@ -67,7 +69,7 @@ class ConsultationRequestController extends Controller
     {
         $consultationRequest->load('certificateRequests', 'subject');
 
-        $consultationRequest->certificateRequests->transform(fn($cr) => $cr->setAttribute(
+        $consultationRequest->certificateRequests->transform(fn ($cr) => $cr->setAttribute(
             'download_url',
             $cr->status === 'success' ? route('certificate-requests.download', $cr) : null,
         ));
@@ -81,7 +83,7 @@ class ConsultationRequestController extends Controller
 
         return response()->json([
             'status' => $consultationRequest->status,
-            'certificates' => $consultationRequest->certificateRequests->map(fn($cr) => [
+            'certificates' => $consultationRequest->certificateRequests->map(fn ($cr) => [
                 'id' => $cr->id,
                 'site' => $cr->site,
                 'status' => $cr->status,
@@ -127,7 +129,7 @@ class ConsultationRequestController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    public function index(\Illuminate\Http\Request $request)
+    public function index(Request $request)
     {
         $consultationRequests = ConsultationRequest::query()
             ->with('subject')

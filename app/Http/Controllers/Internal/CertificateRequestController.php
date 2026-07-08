@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Internal;
 use App\Http\Controllers\Controller;
 use App\Models\CertificateRequest;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class CertificateRequestController extends Controller
 {

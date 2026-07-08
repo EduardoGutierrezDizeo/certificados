@@ -9,12 +9,19 @@ use Illuminate\Support\Str;
 
 class LawyerController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $lawyers = User::role('abogado')
-            ->with(['subscriptions' => fn ($q) => $q->latest()->limit(1)])
-            ->latest()
-            ->paginate(15);
+        $query = User::role('abogado')
+            ->with(['subscriptions' => fn ($q) => $q->latest()->limit(1)]);
+
+        if ($request->query('subscription') === 'active') {
+            $query->whereHas('subscriptions', fn ($q) => $q
+                ->where('status', 'active')
+                ->where('ends_at', '>=', now()),
+            );
+        }
+
+        $lawyers = $query->latest()->paginate(15);
 
         return view('admin.lawyers.index', compact('lawyers'));
     }
@@ -55,5 +62,51 @@ class LawyerController extends Controller
             ->route('admin.lawyers.index')
             ->with('generated_password', $temporaryPassword)
             ->with('generated_email', $lawyer->email);
+    }
+
+    public function suspendSubscription(User $lawyer)
+    {
+        $subscription = $lawyer->subscriptions()->where('status', 'active')->latest()->first();
+        abort_unless($subscription, 404, 'Este abogado no tiene una suscripción activa para suspender.');
+
+        $subscription->update(['status' => 'suspended']);
+
+        return back()->with('success', "Suscripción de {$lawyer->name} suspendida.");
+    }
+
+    public function reactivateSubscription(User $lawyer)
+    {
+        $subscription = $lawyer->subscriptions()
+            ->where('status', 'suspended')
+            ->where('ends_at', '>=', now())
+            ->latest()
+            ->first();
+
+        abort_unless($subscription, 404, 'No hay una suscripción suspendida y vigente para reactivar.');
+
+        $subscription->update(['status' => 'active']);
+
+        return back()->with('success', "Suscripción de {$lawyer->name} reactivada.");
+    }
+
+    public function cancelSubscription(User $lawyer)
+    {
+        $subscription = $lawyer->subscriptions()
+            ->whereIn('status', ['active', 'suspended'])
+            ->latest()
+            ->first();
+
+        abort_unless($subscription, 404, 'No hay una suscripción activa o suspendida para cancelar.');
+
+        $subscription->update(['status' => 'cancelled']);
+
+        return back()->with('success', "Suscripción de {$lawyer->name} cancelada.");
+    }
+
+    public function payments(User $lawyer)
+    {
+        $payments = $lawyer->payments()->latest()->paginate(15);
+
+        return view('admin.lawyers.payments', compact('lawyer', 'payments'));
     }
 }

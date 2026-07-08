@@ -21,10 +21,16 @@
                     <x-application-logo class="h-8 w-8 text-ink-700" />
                     <span class="font-serif text-lg text-ink-700 tracking-tight">CertiCheck</span>
                 </div>
-                <a href="{{ route('login') }}"
-                   class="text-sm font-medium text-ink-700 hover:text-brass-600 transition">
-                    Iniciar sesión →
-                </a>
+                <div class="flex items-center gap-5">
+                    <a href="{{ route('register') }}"
+                       class="text-sm text-carbon/50 hover:text-ink-700 transition">
+                        Crear cuenta
+                    </a>
+                    <a href="{{ route('login') }}"
+                       class="text-sm font-medium text-ink-700 hover:text-brass-600 transition">
+                        Iniciar sesión →
+                    </a>
+                </div>
             </div>
         </header>
 
@@ -42,10 +48,16 @@
                     CertiCheck consulta Contraloría, Policía, RNMC y Procuraduría por ti — y
                     te avisa en cuanto estén listos.
                 </p>
-                <a href="{{ route('login') }}"
-                   class="inline-flex items-center gap-2 bg-ink-700 hover:bg-ink-800 text-white text-sm font-medium px-7 py-3.5 rounded-md transition">
-                    Iniciar sesión
-                </a>
+                <div class="flex flex-col items-start gap-3">
+                    <a href="{{ route('login') }}"
+                       class="inline-flex items-center gap-2 bg-ink-700 hover:bg-ink-800 text-white text-sm font-medium px-7 py-3.5 rounded-md transition">
+                        Iniciar sesión
+                    </a>
+                    <a href="{{ route('register') }}"
+                       class="text-sm text-carbon/50 hover:text-ink-700 underline underline-offset-2 transition">
+                        ¿Aún no tienes cuenta? Regístrate aquí
+                    </a>
+                </div>
             </div>
 
             <div class="relative flex items-center justify-center">
@@ -116,7 +128,13 @@
         <!-- CTA final -->
         <section class="border-t border-ink-100 py-14">
             <div class="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
-                <p class="font-serif text-xl text-ink-700">¿Ya tienes una cuenta activa?</p>
+                <div>
+                    <p class="font-serif text-xl text-ink-700">¿Ya tienes una cuenta activa?</p>
+                    <p class="text-sm text-carbon/50 mt-1">
+                        ¿No tienes cuenta?
+                        <a href="{{ route('register') }}" class="text-ink-700 underline underline-offset-2 hover:text-brass-600 transition">Regístrate aquí</a>
+                    </p>
+                </div>
                 <a href="{{ route('login') }}"
                    class="inline-flex items-center gap-2 bg-ink-700 hover:bg-ink-800 text-white text-sm font-medium px-7 py-3 rounded-md transition">
                     Iniciar sesión
@@ -126,7 +144,7 @@
 
         <footer class="border-t border-ink-100 py-6">
             <div class="max-w-6xl mx-auto px-6 text-xs text-carbon/40">
-                CertiCheck — Las cuentas son creadas por el administrador. No hay registro público.
+                CertiCheck — Certificados de antecedentes para abogados en Colombia.
             </div>
         </footer>
 

@@ -44,4 +44,9 @@
             </x-primary-button>
         </div>
     </form>
+
+    <p class="text-center text-sm text-carbon/50 mt-6">
+        ¿No tienes cuenta?
+        <a href="{{ route('register') }}" class="text-ink-700 font-medium underline underline-offset-2 hover:text-brass-600 transition">Regístrate</a>
+    </p>
 </x-guest-layout>

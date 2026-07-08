@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Subject extends Model
 {
-    use HasFactory, BelongsToLawyer;
+    use BelongsToLawyer, HasFactory;
 
     protected $fillable = [
         'lawyer_id',

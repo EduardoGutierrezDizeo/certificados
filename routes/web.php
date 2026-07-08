@@ -1,12 +1,12 @@
 <?php
 
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\LawyerController;
+use App\Http\Controllers\Auth\ForcePasswordController;
 use App\Http\Controllers\ConsultationRequestController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SubscriptionController;
-use App\Models\ConsultationRequest;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\ForcePasswordController;
 
 Route::get('/', function () {
     return view('landing');
@@ -21,9 +21,14 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/lawyers', [LawyerController::class, 'index'])->name('lawyers.index');
     Route::get('/lawyers/create', [LawyerController::class, 'create'])->name('lawyers.create');
     Route::post('/lawyers', [LawyerController::class, 'store'])->name('lawyers.store');
+    Route::post('/lawyers/{lawyer}/subscription/suspend', [LawyerController::class, 'suspendSubscription'])->name('lawyers.subscription.suspend');
+    Route::post('/lawyers/{lawyer}/subscription/reactivate', [LawyerController::class, 'reactivateSubscription'])->name('lawyers.subscription.reactivate');
+    Route::post('/lawyers/{lawyer}/subscription/cancel', [LawyerController::class, 'cancelSubscription'])->name('lawyers.subscription.cancel');
+    Route::get('/lawyers/{lawyer}/payments', [LawyerController::class, 'payments'])->name('lawyers.payments');
 });
 
 Route::middleware(['auth', 'verified', 'role:abogado'])->group(function () {
@@ -31,6 +36,7 @@ Route::middleware(['auth', 'verified', 'role:abogado'])->group(function () {
     Route::get('/subscribe/checkout', [SubscriptionController::class, 'checkout'])->name('subscription.checkout');
     Route::get('/subscribe/return', [SubscriptionController::class, 'return'])->name('subscription.return');
     Route::get('/subscribe/status', [SubscriptionController::class, 'status'])->name('subscription.status');
+    Route::get('/subscribe/history', [SubscriptionController::class, 'paymentHistory'])->name('subscription.history');
 });
 
 Route::middleware(['auth', 'verified', 'role:abogado', 'subscription.active'])->group(function () {
@@ -53,10 +59,10 @@ Route::middleware(['auth', 'verified', 'role:abogado', 'subscription.active'])->
         ->name('certificate-requests.download');
 
     Route::post('/certificate-requests/{certificateRequest}/retry', [ConsultationRequestController::class, 'retry'])
-    ->name('certificate-requests.retry');
+        ->name('certificate-requests.retry');
 
     Route::get('/consultation-requests', [ConsultationRequestController::class, 'index'])
-    ->name('consultation-requests.index');
+        ->name('consultation-requests.index');
 });
 
 require __DIR__.'/auth.php';

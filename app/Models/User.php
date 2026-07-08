@@ -11,7 +11,7 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
-    use HasFactory, Notifiable, HasRoles;
+    use HasFactory, HasRoles, Notifiable;
 
     protected $fillable = [
         'name',
@@ -47,6 +47,11 @@ class User extends Authenticatable implements MustVerifyEmail
     public function consultationRequests(): HasMany
     {
         return $this->hasMany(ConsultationRequest::class, 'lawyer_id');
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
     }
 
     public function hasActiveSubscription(): bool

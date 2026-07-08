@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Payment;
 use App\Services\WompiSignatureService;
-use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\View\View;
 
 class SubscriptionController extends Controller
 {
@@ -56,5 +56,12 @@ class SubscriptionController extends Controller
         return response()->json([
             'active' => auth()->user()->hasActiveSubscription(),
         ]);
+    }
+
+    public function paymentHistory(): View
+    {
+        $payments = auth()->user()->payments()->latest()->paginate(15);
+
+        return view('subscription.history', compact('payments'));
     }
 }

@@ -1,0 +1,33 @@
+CERTIFICADOS:
+
+docker start certicheck-redis
+ngrok http 8000
+php artisan serve
+npm run dev
+.\venv\Scripts\Activate.ps1
+python worker.py
+php artisan schedule:work             --> para el reloj
+
+
+https://mailtrap.io/
+https://comercios.wompi.co/
+
+php artisan admin:create
+
+Antes de probar pagos:
+
+Confirma que ngrok sigue corriendo (ngrok http 8000 en su terminal). Si lo cerraste, vuelve a levantarlo — ten en cuenta que el plan gratuito de ngrok genera una URL distinta cada vez que lo reinicias, así que si ya no es conform-patient-gently.ngrok-free.dev, vas a necesitar actualizar también la URL del webhook en el dashboard de Wompi con la nueva.
+En el .env:
+
+APP_URL=https://tu-url-actual-de-ngrok.ngrok-free.dev
+
+php artisan config:clear
+Entra a la app por esa URL de ngrok, no por 127.0.0.1:8000.
+npm run build
+
+
+CLOSECLUB:
+
+php artisan queue:work
+php artisan serve
+npm run dev
