@@ -14,7 +14,7 @@ load_dotenv()
 REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 QUEUE_NAME = "certificate_jobs"
-MAX_WORKERS = 3
+MAX_WORKERS = int(os.getenv("WORKER_CONCURRENCY", 3))
 
 LARAVEL_BASE_URL = os.getenv("LARAVEL_BASE_URL", "http://127.0.0.1:8000")
 INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY")

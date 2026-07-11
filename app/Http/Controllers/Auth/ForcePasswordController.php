@@ -25,6 +25,10 @@ class ForcePasswordController extends Controller
             'must_change_password' => false,
         ]);
 
-        return redirect()->route('dashboard')->with('status', 'Contraseña actualizada correctamente.');
+        $redirect = $request->user()->hasRole('admin')
+            ? 'admin.dashboard'
+            : 'dashboard';
+
+        return redirect()->route($redirect)->with('status', 'Contraseña actualizada correctamente.');
     }
 }
