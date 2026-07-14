@@ -1,6 +1,5 @@
+import os
 from datetime import datetime
-
-from playwright.sync_api import sync_playwright
 
 from config import TEMP_CERTS_DIR
 
@@ -16,19 +15,27 @@ def consultar(document_type: str, document_number: str, full_name: str | None, i
     if document_type == "CC" and not issuance_date:
         return {"status": "failed", "error_message": "RNMC requiere fecha de expedición para Cédula de Ciudadanía"}
 
-    owns_browser = browser is None
-    if owns_browser:
-        pw = sync_playwright().start()
-        browser = pw.chromium.launch(headless=True)
+    context = browser.new_context()
+    page = context.new_page()
 
     try:
-        page = browser.new_page()
         page.on("dialog", lambda d: d.accept())
 
         page.goto(URL)
         page.wait_for_load_state("networkidle")
+        page.wait_for_timeout(1000)
 
-        page.select_option("#ctl00_ContentPlaceHolder3_ddlTipoDoc", TIPO_DOC_MAP[document_type])
+        try:
+            page.select_option("#ctl00_ContentPlaceHolder3_ddlTipoDoc", TIPO_DOC_MAP[document_type])
+        except Exception as e:
+            options = page.eval_on_selector(
+                "#ctl00_ContentPlaceHolder3_ddlTipoDoc",
+                "el => Array.from(el.options).map(o => ({value: o.value, text: o.text}))",
+            )
+            screenshot_path = os.path.join(str(TEMP_CERTS_DIR), f"rnmc_debug_{document_number}.png")
+            page.screenshot(path=screenshot_path, full_page=True)
+            return {"status": "failed", "error_message": f"select_option failed: {e} | options={options} | screenshot={screenshot_path}"}
+
         page.wait_for_load_state("networkidle")
         page.wait_for_timeout(1000)
 
@@ -44,25 +51,46 @@ def consultar(document_type: str, document_number: str, full_name: str | None, i
             page.click("#ctl00_ContentPlaceHolder3_btnConsultar")
 
         page.wait_for_load_state("networkidle", timeout=20000)
-        page.wait_for_timeout(1000)
+
+        page.wait_for_function(
+            """() => {
+                const overlays = document.querySelectorAll('[style*="display"]');
+                for (const el of overlays) {
+                    const text = el.innerText || '';
+                    if (text.includes('Cargando') || text.includes('procesando')) {
+                        if (el.offsetParent !== null && getComputedStyle(el).display !== 'none') {
+                            return false;
+                        }
+                    }
+                }
+                const progress = document.getElementById('ctl00_ContentPlaceHolder3_UpdateProgress1');
+                if (progress && getComputedStyle(progress).display !== 'none') return false;
+                const body = document.body.innerText.toUpperCase();
+                return body.includes('MEDIDAS CORRECTIVAS') || body.includes('NO TIENE');
+            }""",
+            timeout=25000,
+        )
+        page.wait_for_timeout(500)
 
         modal_texto = page.locator("#ctl00_ContentPlaceHolder3_lblcontenidomodal").inner_text().strip()
         if modal_texto:
-            page.close()
             return {"status": "failed", "error_message": modal_texto}
 
         contenido = page.content()
         if "MEDIDAS CORRECTIVAS" not in contenido.upper():
-            page.close()
             return {"status": "failed", "error_message": "No se detectó respuesta reconocible del sitio"}
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         pdf_path = str(TEMP_CERTS_DIR / f"rnmc_{document_number}_{timestamp}.pdf")
         page.pdf(path=pdf_path, format="A4", print_background=True)
 
-        page.close()
         return {"status": "success", "pdf_path": pdf_path}
     except Exception:
-        if owns_browser:
-            browser.close()
+        screenshot_path = os.path.join(str(TEMP_CERTS_DIR), f"rnmc_error_{document_number}.png")
+        try:
+            page.screenshot(path=screenshot_path, full_page=True)
+        except Exception:
+            pass
         raise
+    finally:
+        context.close()
