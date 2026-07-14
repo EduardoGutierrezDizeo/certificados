@@ -61,6 +61,15 @@ Route::middleware(['auth', 'verified', 'role:abogado', 'subscription.active'])->
     Route::post('/certificate-requests/{certificateRequest}/retry', [ConsultationRequestController::class, 'retry'])
         ->name('certificate-requests.retry');
 
+    Route::delete('/consultation-requests/{consultationRequest}', [ConsultationRequestController::class, 'destroy'])
+        ->name('consultation-requests.destroy');
+
+    Route::post('/consultation-requests/{consultationRequest}/regenerate', [ConsultationRequestController::class, 'regenerate'])
+        ->name('consultation-requests.regenerate');
+
+    Route::get('/consultation-requests/{consultationRequest}/download-zip', [ConsultationRequestController::class, 'downloadZip'])
+        ->name('consultation-requests.download-zip');
+
     Route::get('/consultation-requests', [ConsultationRequestController::class, 'index'])
         ->name('consultation-requests.index');
 });

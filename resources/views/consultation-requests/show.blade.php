@@ -82,10 +82,41 @@
             </template>
         </div>
 
-        <div class="pt-2">
+        <div class="pt-2 flex items-center gap-4">
             <a href="{{ route('dashboard') }}" class="text-sm text-ink-700 hover:text-brass-600 font-medium">
                 ← Generar otra consulta
             </a>
+
+            <template x-if="allDone">
+                <form method="POST" action="{{ route('consultation-requests.regenerate', $consultationRequest) }}"
+                      x-data
+                      @submit.prevent="
+                          if (confirm('¿Generar una nueva consulta con los mismos datos?')) {
+                              $el.submit();
+                          }
+                      ">
+                    @csrf
+                    <button type="submit"
+                            class="inline-flex items-center gap-1.5 text-sm font-medium text-ink-700 hover:text-brass-600">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Regenerar esta consulta
+                    </button>
+                </form>
+            </template>
+
+            <template x-if="allDone && hasSuccess">
+                <a href="{{ route('consultation-requests.download-zip', $consultationRequest) }}"
+                   class="inline-flex items-center gap-1.5 text-sm font-medium text-white bg-ink-700 hover:bg-ink-800 px-4 py-2 rounded-md transition">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16" />
+                    </svg>
+                    Descargar comprimido
+                </a>
+            </template>
         </div>
     </div>
 
@@ -97,6 +128,10 @@
 
                 get allDone() {
                     return this.certificates.every(c => c.status === 'success' || c.status === 'failed');
+                },
+
+                get hasSuccess() {
+                    return this.certificates.some(c => c.status === 'success');
                 },
 
                 siteLabel(site) {

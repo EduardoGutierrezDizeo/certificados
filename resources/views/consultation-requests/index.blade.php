@@ -77,10 +77,45 @@
                                     {{ $cr->created_at->format('d/m/Y H:i') }}
                                 </td>
                                 <td class="px-5 py-3.5 text-right">
-                                    <a href="{{ route('consultation-requests.show', $cr) }}"
-                                       class="text-ink-700 hover:text-brass-600 font-medium">
-                                        Ver →
-                                    </a>
+                                    <div class="flex items-center justify-end gap-3">
+                                        @if (in_array($cr->status, ['success', 'partial', 'failed']))
+                                            <form method="POST" action="{{ route('consultation-requests.regenerate', $cr) }}"
+                                                  x-data
+                                                  @submit.prevent="
+                                                      if (confirm('¿Generar una nueva consulta con los mismos datos de {{ $cr->subject->document_number }}?')) {
+                                                          $el.submit();
+                                                      }
+                                                  ">
+                                                @csrf
+                                                <button type="submit"
+                                                        class="text-xs font-medium text-ink-700 hover:text-brass-600"
+                                                        title="Regenerar consulta">
+                                                    Regenerar
+                                                </button>
+                                            </form>
+                                        @endif
+
+                                        <form method="POST" action="{{ route('consultation-requests.destroy', $cr) }}"
+                                              x-data
+                                              @submit.prevent="
+                                                  if (confirm('¿Eliminar esta consulta? Esta acción no se puede deshacer.')) {
+                                                      $el.submit();
+                                                  }
+                                              ">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit"
+                                                    class="text-xs font-medium text-rust/70 hover:text-rust"
+                                                    title="Eliminar consulta">
+                                                Eliminar
+                                            </button>
+                                        </form>
+
+                                        <a href="{{ route('consultation-requests.show', $cr) }}"
+                                           class="text-ink-700 hover:text-brass-600 font-medium">
+                                            Ver →
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach

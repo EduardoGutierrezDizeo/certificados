@@ -1,11 +1,12 @@
 import json
 import os
-import time
+import threading
 from concurrent.futures import ThreadPoolExecutor
 
 import redis
 import requests
 from dotenv import load_dotenv
+from playwright.sync_api import sync_playwright
 
 from sites import rnmc, policia_judicial, contraloria, procuraduria
 
@@ -33,6 +34,15 @@ r = redis.Redis(
     socket_timeout=10,
     socket_connect_timeout=10,
 )
+
+_thread_local = threading.local()
+
+
+def get_browser():
+    if not hasattr(_thread_local, "playwright"):
+        _thread_local.playwright = sync_playwright().start()
+        _thread_local.browser = _thread_local.playwright.chromium.launch(headless=True)
+    return _thread_local.browser
 
 
 def reportar_resultado(certificate_request_id: int, resultado: dict):
@@ -78,11 +88,13 @@ def procesar_job(payload: dict):
     print(f"[DEBUG] Procesando id={certificate_request_id} site={site}")
 
     try:
+        browser = get_browser()
         resultado = handler(
             payload["document_type"],
             payload["document_number"],
             payload.get("full_name"),
             payload.get("issuance_date"),
+            browser=browser,
         )
     except Exception as e:
         resultado = {"status": "failed", "error_message": f"Error inesperado en el worker: {e}"}

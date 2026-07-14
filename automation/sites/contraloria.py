@@ -1,8 +1,10 @@
 import os
+from datetime import datetime
+
 from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright
 from twocaptcha import TwoCaptcha
-from datetime import datetime
+
 from config import TEMP_CERTS_DIR
 
 load_dotenv()
@@ -14,12 +16,16 @@ SITE_KEY = "6LcfnjwUAAAAAIyl8ehhox7ZYqLQSVl_w1dmYIle"
 TIPO_DOC_MAP = {"CC": "CC", "CE": "CE", "PA": "PA"}
 
 
-def consultar(document_type: str, document_number: str, full_name: str | None, issuance_date: str | None) -> dict:
+def consultar(document_type: str, document_number: str, full_name: str | None, issuance_date: str | None, browser=None) -> dict:
     if document_type not in TIPO_DOC_MAP:
         return {"status": "failed", "error_message": f"Contraloría no soporta tipo de documento '{document_type}'"}
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+    owns_browser = browser is None
+    if owns_browser:
+        pw = sync_playwright().start()
+        browser = pw.chromium.launch(headless=True)
+
+    try:
         page = browser.new_page(accept_downloads=True)
 
         page.goto(URL)
@@ -31,7 +37,7 @@ def consultar(document_type: str, document_number: str, full_name: str | None, i
         try:
             resultado_captcha = solver.recaptcha(sitekey=SITE_KEY, url=URL)
         except Exception as e:
-            browser.close()
+            page.close()
             return {"status": "failed", "error_message": f"Error resolviendo CAPTCHA: {e}"}
 
         page.evaluate(
@@ -47,13 +53,17 @@ def consultar(document_type: str, document_number: str, full_name: str | None, i
             with page.expect_download(timeout=20000) as download_info:
                 page.click("#btnBuscar")
             download_info.value.save_as(pdf_path)
-            browser.close()
+            page.close()
             return {"status": "success", "pdf_path": pdf_path}
         except Exception:
             page.wait_for_load_state("networkidle", timeout=10000)
             page.wait_for_timeout(1000)
             mensaje_error = page.locator("#alerts-container-validation").inner_text().strip()
-            browser.close()
+            page.close()
             if mensaje_error:
                 return {"status": "failed", "error_message": mensaje_error}
             return {"status": "failed", "error_message": "No se generó descarga ni mensaje de error reconocible"}
+    except Exception:
+        if owns_browser:
+            browser.close()
+        raise

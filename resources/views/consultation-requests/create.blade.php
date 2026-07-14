@@ -72,6 +72,21 @@
                     <h3 class="font-serif text-lg text-ink-700 mb-1">Certificados a generar</h3>
                     <p class="text-sm text-carbon/60 mb-4">Elige uno o varios.</p>
 
+                    <div class="mb-3" x-data="{ allChecked: false }">
+                        <button type="button" id="select_all_sites"
+                                x-on:click="allChecked = !allChecked; document.querySelectorAll('.site-checkbox').forEach(cb => cb.checked = allChecked)"
+                                class="inline-flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-md border transition"
+                                :class="allChecked ? 'bg-ink-700 text-white border-ink-700 hover:bg-ink-800' : 'bg-white text-ink-700 border-ink-200 hover:bg-ink-50'">
+                            <svg x-show="!allChecked" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <svg x-show="allChecked" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                            Seleccionar todos
+                        </button>
+                    </div>
+
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         @foreach ([
                             'rnmc' => ['Medidas Correctivas', 'RNMC — Policía Nacional'],
@@ -81,8 +96,8 @@
                         ] as $value => [$title, $subtitle])
                             <label class="flex items-start gap-3 border border-ink-100 rounded-md p-4 cursor-pointer has-[:checked]:border-brass-500 has-[:checked]:bg-brass-50 transition">
                                 <input type="checkbox" name="sites[]" value="{{ $value }}"
-                                       {{ in_array($value, old('sites', [])) ? 'checked' : '' }}
-                                       class="mt-0.5 rounded border-ink-100 text-brass-500 focus:ring-brass-500">
+                                       class="site-checkbox mt-0.5 rounded border-ink-100 text-brass-500 focus:ring-brass-500"
+                                       {{ in_array($value, old('sites', [])) ? 'checked' : '' }}>
                                 <span>
                                     <span class="block text-sm font-medium text-carbon">{{ $title }}</span>
                                     <span class="block text-xs text-carbon/50">{{ $subtitle }}</span>

@@ -11,6 +11,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use ZipArchive;
 
 class ConsultationRequestController extends Controller
 {
@@ -144,5 +145,95 @@ class ConsultationRequestController extends Controller
             ->withQueryString();
 
         return view('consultation-requests.index', compact('consultationRequests'));
+    }
+
+    public function destroy(ConsultationRequest $consultationRequest)
+    {
+        $perteneceAlAbogado = $consultationRequest->lawyer_id === auth()->id();
+        $esAdmin = auth()->user()->hasRole('admin');
+        abort_unless($perteneceAlAbogado || $esAdmin, 403);
+
+        $pdfDir = "certificates/{$consultationRequest->id}";
+        if (Storage::exists($pdfDir)) {
+            Storage::deleteDirectory($pdfDir);
+        }
+
+        $consultationRequest->delete();
+
+        return redirect()->route('consultation-requests.index')
+            ->with('status', 'Consulta eliminada correctamente.');
+    }
+
+    public function regenerate(ConsultationRequest $consultationRequest, CertificateJobDispatcher $dispatcher)
+    {
+        $perteneceAlAbogado = $consultationRequest->lawyer_id === auth()->id();
+        $esAdmin = auth()->user()->hasRole('admin');
+        abort_unless($perteneceAlAbogado || $esAdmin, 403);
+
+        $sites = $consultationRequest->certificateRequests->pluck('site')->values()->all();
+
+        $newConsultation = DB::transaction(function () use ($consultationRequest, $sites, $dispatcher) {
+            $consultationRequest = ConsultationRequest::create([
+                'subject_id' => $consultationRequest->subject_id,
+                'status' => 'pending',
+            ]);
+
+            foreach ($sites as $site) {
+                $certificateRequest = $consultationRequest->certificateRequests()->create([
+                    'site' => $site,
+                    'status' => 'pending',
+                ]);
+
+                $dispatcher->dispatch($certificateRequest);
+            }
+
+            return $consultationRequest;
+        });
+
+        return redirect()->route('consultation-requests.show', $newConsultation)
+            ->with('status', 'Consulta regenerada correctamente.');
+    }
+
+    public function downloadZip(ConsultationRequest $consultationRequest)
+    {
+        $perteneceAlAbogado = $consultationRequest->lawyer_id === auth()->id();
+        $esAdmin = auth()->user()->hasRole('admin');
+        abort_unless($perteneceAlAbogado || $esAdmin, 403);
+
+        $successfulCerts = $consultationRequest->certificateRequests()
+            ->where('status', 'success')
+            ->whereNotNull('pdf_path')
+            ->get();
+
+        abort_if($successfulCerts->isEmpty(), 404);
+
+        $etiquetasSitio = [
+            'rnmc' => 'RNMC',
+            'judicial_police' => 'Antecedentes Judiciales',
+            'comptroller' => 'Contraloria',
+            'attorney_general' => 'Procuraduria',
+        ];
+
+        $numeroDocumento = $consultationRequest->subject->document_number;
+        $zipFileName = "{$numeroDocumento}.zip";
+
+        $zip = new ZipArchive;
+        $zipPath = storage_path("app/{$zipFileName}");
+
+        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            abort(500, 'No se pudo crear el archivo comprimido');
+        }
+
+        foreach ($successfulCerts as $cert) {
+            $fullPath = Storage::path($cert->pdf_path);
+            if (file_exists($fullPath)) {
+                $etiqueta = $etiquetasSitio[$cert->site] ?? $cert->site;
+                $zip->addFile($fullPath, "{$etiqueta}.pdf");
+            }
+        }
+
+        $zip->close();
+
+        return response()->download($zipPath, $zipFileName)->deleteFileAfterSend(true);
     }
 }
