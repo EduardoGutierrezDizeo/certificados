@@ -12,7 +12,11 @@
         <link href="https://fonts.bunny.net/css?family=source-serif-4:400,600,700&display=swap" rel="stylesheet" />
         <link href="https://fonts.bunny.net/css?family=ibm-plex-mono:400,500&display=swap" rel="stylesheet" />
 
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
         @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
     </head>
     <body class="font-sans text-carbon antialiased bg-surface" x-data="{ sidebarOpen: false }">
         <div class="min-h-screen flex">

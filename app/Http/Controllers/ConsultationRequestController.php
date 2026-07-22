@@ -147,6 +147,42 @@ class ConsultationRequestController extends Controller
         return view('consultation-requests.index', compact('consultationRequests'));
     }
 
+    public function indexStatus(Request $request)
+    {
+        $ids = $request->input('ids', []);
+
+        if (empty($ids)) {
+            return response()->json([]);
+        }
+
+        $statuses = ConsultationRequest::query()
+            ->whereIn('id', $ids)
+            ->pluck('status', 'id')
+            ->all();
+
+        return response()->json($statuses);
+    }
+
+    public function cancel(ConsultationRequest $consultationRequest)
+    {
+        $perteneceAlAbogado = $consultationRequest->lawyer_id === auth()->id();
+        abort_unless($perteneceAlAbogado, 403);
+
+        abort_unless(
+            in_array($consultationRequest->status, ['pending', 'processing']),
+            422,
+            'Solo se pueden cancelar consultas en proceso.'
+        );
+
+        $consultationRequest->certificateRequests()
+            ->whereIn('status', ['pending', 'processing'])
+            ->update(['status' => 'cancelled']);
+
+        $consultationRequest->update(['status' => 'cancelled']);
+
+        return response()->json(['ok' => true]);
+    }
+
     public function destroy(ConsultationRequest $consultationRequest)
     {
         $perteneceAlAbogado = $consultationRequest->lawyer_id === auth()->id();

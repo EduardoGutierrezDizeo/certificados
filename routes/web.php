@@ -49,6 +49,9 @@ Route::middleware(['auth', 'verified', 'role:abogado', 'subscription.active'])->
     Route::post('/consultation-requests', [ConsultationRequestController::class, 'store'])
         ->name('consultation-requests.store');
 
+    Route::get('/consultation-requests/status', [ConsultationRequestController::class, 'indexStatus'])
+        ->name('consultation-requests.index-status');
+
     Route::get('/consultation-requests/{consultationRequest}', [ConsultationRequestController::class, 'show'])
         ->name('consultation-requests.show');
 
@@ -66,6 +69,9 @@ Route::middleware(['auth', 'verified', 'role:abogado', 'subscription.active'])->
 
     Route::post('/consultation-requests/{consultationRequest}/regenerate', [ConsultationRequestController::class, 'regenerate'])
         ->name('consultation-requests.regenerate');
+
+    Route::post('/consultation-requests/{consultationRequest}/cancel', [ConsultationRequestController::class, 'cancel'])
+        ->name('consultation-requests.cancel');
 
     Route::get('/consultation-requests/{consultationRequest}/download-zip', [ConsultationRequestController::class, 'downloadZip'])
         ->name('consultation-requests.download-zip');

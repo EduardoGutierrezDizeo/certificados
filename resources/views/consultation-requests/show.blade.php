@@ -29,6 +29,7 @@
                             'border-brass-400 text-brass-500': cert.status === 'processing',
                             'border-green-600 bg-green-50 text-green-600': cert.status === 'success',
                             'border-rust bg-rust/5 text-rust': cert.status === 'failed',
+                            'border-carbon/20 text-carbon/30': cert.status === 'cancelled',
                          }">
                         <svg x-show="cert.status === 'pending'" class="h-5 w-5" fill="none" stroke="currentColor"
                             viewBox="0 0 24 24">
@@ -51,6 +52,11 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
                                 d="M6 18L18 6M6 6l12 12" />
                         </svg>
+                        <svg x-show="cert.status === 'cancelled'" class="h-5 w-5" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                        </svg>
                     </div>
 
                     <div class="min-w-0 flex-1">
@@ -58,6 +64,7 @@
 
                         <p x-show="cert.status === 'pending'" class="text-xs text-carbon/50 mt-0.5">En cola...</p>
                         <p x-show="cert.status === 'processing'" class="text-xs text-brass-600 mt-0.5">Procesando...</p>
+                        <p x-show="cert.status === 'cancelled'" class="text-xs text-carbon/40 mt-0.5">Cancelado</p>
                         <p x-show="cert.status === 'failed'" class="text-xs text-rust mt-0.5"
                             x-text="cert.error_message"></p>
                         <button x-show="cert.status === 'failed'" @click="retry(cert.id)"
@@ -87,11 +94,59 @@
                 ← Generar otra consulta
             </a>
 
+            <template x-if="!allDone">
+                <form method="POST" action="{{ route('consultation-requests.cancel', $consultationRequest) }}"
+                      x-data
+                      @submit.prevent="
+                          const result = await swalConfirm({
+                              title: 'Cancelar generación',
+                              text: 'Se detendrá el procesamiento de todos los certificados pendientes.',
+                              icon: 'warning',
+                              confirmButtonText: 'Sí, cancelar',
+                              cancelButtonText: 'Volver',
+                              confirmButtonColor: '#B54B3F',
+                          });
+                          if (result.isConfirmed) {
+                              const res = await fetch($el.action, {
+                                  method: 'POST',
+                                  headers: {
+                                      'X-CSRF-TOKEN': document.querySelector('meta[name=\"csrf-token\"]').content,
+                                  },
+                              });
+                              if (res.ok) {
+                                  this.certificates = this.certificates.map(c =>
+                                      (c.status === 'pending' || c.status === 'processing')
+                                          ? { ...c, status: 'cancelled' }
+                                          : c
+                                  );
+                                  clearInterval(this.pollTimer);
+                              }
+                          }
+                      ">
+                    @csrf
+                    <button type="submit"
+                            class="inline-flex items-center gap-1.5 text-sm font-medium text-rust/70 hover:text-rust transition">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        Cancelar generación
+                    </button>
+                </form>
+            </template>
+
             <template x-if="allDone">
                 <form method="POST" action="{{ route('consultation-requests.regenerate', $consultationRequest) }}"
                       x-data
                       @submit.prevent="
-                          if (confirm('¿Generar una nueva consulta con los mismos datos?')) {
+                          const result = await swalConfirm({
+                              title: 'Regenerar consulta',
+                              text: 'Se creará una nueva consulta con los mismos datos y sitios.',
+                              icon: 'question',
+                              confirmButtonText: 'Sí, regenerar',
+                              cancelButtonText: 'Cancelar',
+                          });
+                          if (result.isConfirmed) {
                               $el.submit();
                           }
                       ">
