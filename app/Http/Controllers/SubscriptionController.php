@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Payment;
-use App\Services\WompiSignatureService;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -16,7 +16,7 @@ class SubscriptionController extends Controller
         return view('subscription.show', ['priceInCents' => $priceInCents]);
     }
 
-    public function checkout(WompiSignatureService $signer)
+    public function checkout()
     {
         $priceInCents = ((int) config('services.subscription_price_cop', 50000)) * 100;
         $reference = 'CERTICHECK-'.auth()->id().'-'.Str::random(10);
@@ -24,31 +24,36 @@ class SubscriptionController extends Controller
         Payment::create([
             'user_id' => auth()->id(),
             'reference' => $reference,
+            'payment_provider' => 'epayco',
             'amount_in_cents' => $priceInCents,
             'status' => 'pending',
         ]);
 
-        $signature = $signer->integritySignature($reference, $priceInCents);
-
-        $params = [
-            'public-key' => config('services.wompi.public_key'),
-            'currency' => 'COP',
-            'amount-in-cents' => $priceInCents,
+        return view('subscription.checkout', [
+            'amount' => $priceInCents / 100,
             'reference' => $reference,
-            'signature:integrity' => $signature,
-            'redirect-url' => route('subscription.return'),
-        ];
-
-        $queryString = collect($params)
-            ->map(fn ($value, $key) => $key.'='.rawurlencode($value))
-            ->implode('&');
-
-        return redirect("https://checkout.wompi.co/p/?{$queryString}");
+            'publicKey' => config('services.epayco.public_key'),
+            'testMode' => config('services.epayco.test_mode'),
+        ]);
     }
 
     public function return()
     {
-        return view('subscription.return');
+        $queryParams = request()->query();
+
+        Log::info('Retorno de checkout ePayco', $queryParams);
+
+        $response = $queryParams['x_response'] ?? $queryParams['response'] ?? null;
+        $transactionState = $queryParams['x_transaction_state'] ?? $queryParams['x_cod_transaction_state'] ?? null;
+
+        $estadosFallidos = ['Rechazada', 'Fallida', 'Cancelada', 'Cancelado', 'Declined', 'Failed'];
+
+        $pareceFallido = $response && in_array($response, $estadosFallidos, true);
+
+        return view('subscription.return', [
+            'pareceFallido' => $pareceFallido,
+            'estadoRecibido' => $response,
+        ]);
     }
 
     public function status()

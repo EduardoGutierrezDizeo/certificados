@@ -3,44 +3,47 @@
 namespace App\Http\Controllers;
 
 use App\Models\Payment;
-use App\Services\WompiSignatureService;
+use App\Services\EpaycoSignatureService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
-class WompiWebhookController extends Controller
+class EpaycoWebhookController extends Controller
 {
-    public function handle(Request $request, WompiSignatureService $signer)
+    public function handle(Request $request, EpaycoSignatureService $signer)
     {
         $payload = $request->all();
 
-        if (! $signer->verifyEventChecksum($payload)) {
-            Log::warning('Webhook de Wompi rechazado: checksum inválido', ['payload' => $payload]);
+        if (! $signer->verifyConfirmationSignature($payload)) {
+            Log::warning('Webhook de ePayco rechazado: firma inválida', ['payload' => $payload]);
 
             return response()->json(['ok' => false], 401);
         }
 
-        $transaction = $payload['data']['transaction'] ?? null;
-        if (! $transaction) {
+        $reference = $payload['x_id_factura'] ?? null;
+        if (! $reference) {
             return response()->json(['ok' => true]);
         }
 
-        $payment = Payment::where('reference', $transaction['reference'])->first();
+        $payment = Payment::where('reference', $reference)->first();
         if (! $payment) {
-            Log::warning('Webhook de Wompi: pago no encontrado', ['reference' => $transaction['reference']]);
+            Log::warning('Webhook de ePayco: pago no encontrado', ['reference' => $reference]);
 
             return response()->json(['ok' => true]);
         }
 
         $estadoMap = [
-            'APPROVED' => 'approved',
-            'DECLINED' => 'declined',
-            'ERROR' => 'error',
-            'VOIDED' => 'voided',
+            'Aceptada' => 'approved',
+            'Pendiente' => 'pending',
+            'Rechazada' => 'declined',
+            'Fallida' => 'error',
+            'Reversada' => 'voided',
+            'Retenida' => 'error',
+            'Iniciada' => 'pending',
         ];
 
         $payment->update([
-            'status' => $estadoMap[$transaction['status']] ?? 'error',
-            'wompi_transaction_id' => $transaction['id'],
+            'status' => $estadoMap[$payload['x_transaction_state'] ?? ''] ?? 'error',
+            'gateway_transaction_id' => $payload['x_ref_payco'] ?? null,
             'raw_payload' => $payload,
         ]);
 

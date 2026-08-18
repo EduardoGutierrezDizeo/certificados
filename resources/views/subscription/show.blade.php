@@ -25,7 +25,7 @@
                 </a>
 
                 <p class="text-xs text-carbon/40 mt-4">
-                    Serás redirigido a Wompi, nuestra pasarela de pagos segura.
+                    Serás redirigido a ePayco, nuestra pasarela de pagos segura (PSE, Nequi o tarjeta).
                 </p>
             </div>
         </div>

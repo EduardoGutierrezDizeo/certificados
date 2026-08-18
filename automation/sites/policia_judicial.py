@@ -6,6 +6,7 @@ from playwright.sync_api import sync_playwright
 from twocaptcha import TwoCaptcha
 
 from config import TEMP_CERTS_DIR
+from sites import crear_context_stealthed
 
 load_dotenv()
 solver = TwoCaptcha(os.getenv("TWOCAPTCHA_API_KEY"))
@@ -26,7 +27,7 @@ def consultar(document_type: str, document_number: str, full_name: str | None, i
         browser = pw.chromium.launch(headless=True)
 
     try:
-        page = browser.new_page()
+        page = crear_context_stealthed(browser).new_page()
 
         page.goto(URL)
         page.wait_for_load_state("networkidle")

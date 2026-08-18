@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 
 from config import TEMP_CERTS_DIR
+from sites import crear_context_stealthed
 
 URL = "https://srvcnpc.policia.gov.co/PSC/frm_cnp_consulta.aspx"
 
@@ -15,7 +16,7 @@ def consultar(document_type: str, document_number: str, full_name: str | None, i
     if document_type == "CC" and not issuance_date:
         return {"status": "failed", "error_message": "RNMC requiere fecha de expedición para Cédula de Ciudadanía"}
 
-    context = browser.new_context()
+    context = crear_context_stealthed(browser)
     page = context.new_page()
 
     try:

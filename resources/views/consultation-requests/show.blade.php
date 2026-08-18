@@ -95,71 +95,25 @@
             </a>
 
             <template x-if="!allDone">
-                <form method="POST" action="{{ route('consultation-requests.cancel', $consultationRequest) }}"
-                      x-data
-                      @submit.prevent="
-                          const result = await swalConfirm({
-                              title: 'Cancelar generación',
-                              text: 'Se detendrá el procesamiento de todos los certificados pendientes.',
-                              icon: 'warning',
-                              confirmButtonText: 'Sí, cancelar',
-                              cancelButtonText: 'Volver',
-                              confirmButtonColor: '#B54B3F',
-                          });
-                          if (result.isConfirmed) {
-                              const res = await fetch($el.action, {
-                                  method: 'POST',
-                                  headers: {
-                                      'X-CSRF-TOKEN': document.querySelector('meta[name=\"csrf-token\"]').content,
-                                  },
-                              });
-                              if (res.ok) {
-                                  this.certificates = this.certificates.map(c =>
-                                      (c.status === 'pending' || c.status === 'processing')
-                                          ? { ...c, status: 'cancelled' }
-                                          : c
-                                  );
-                                  clearInterval(this.pollTimer);
-                              }
-                          }
-                      ">
-                    @csrf
-                    <button type="submit"
-                            class="inline-flex items-center gap-1.5 text-sm font-medium text-rust/70 hover:text-rust transition">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                        Cancelar generación
-                    </button>
-                </form>
+                <button @click="cancelarGeneracion()"
+                        class="inline-flex items-center gap-1.5 text-sm font-medium text-rust/70 hover:text-rust transition">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Cancelar generación
+                </button>
             </template>
 
             <template x-if="allDone">
-                <form method="POST" action="{{ route('consultation-requests.regenerate', $consultationRequest) }}"
-                      x-data
-                      @submit.prevent="
-                          const result = await swalConfirm({
-                              title: 'Regenerar consulta',
-                              text: 'Se creará una nueva consulta con los mismos datos y sitios.',
-                              icon: 'question',
-                              confirmButtonText: 'Sí, regenerar',
-                              cancelButtonText: 'Cancelar',
-                          });
-                          if (result.isConfirmed) {
-                              $el.submit();
-                          }
-                      ">
-                    @csrf
-                    <button type="submit"
-                            class="inline-flex items-center gap-1.5 text-sm font-medium text-ink-700 hover:text-brass-600">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        Regenerar esta consulta
-                    </button>
-                </form>
+                <button @click="regenerarConsulta()"
+                        class="inline-flex items-center gap-1.5 text-sm font-medium text-ink-700 hover:text-brass-600">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Regenerar esta consulta
+                </button>
             </template>
 
             <template x-if="allDone && hasSuccess">
@@ -180,6 +134,9 @@
             return {
                 certificates: initialCertificates,
                 pollTimer: null,
+                cancelUrl: '{{ route("consultation-requests.cancel", $consultationRequest) }}',
+                regenerateUrl: '{{ route("consultation-requests.regenerate", $consultationRequest) }}',
+                csrfToken: document.querySelector('meta[name="csrf-token"]').content,
 
                 get allDone() {
                     return this.certificates.every(c => c.status === 'success' || c.status === 'failed');
@@ -225,7 +182,7 @@
                         await fetch(`/certificate-requests/${certificateId}/retry`, {
                             method: 'POST',
                             headers: {
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                'X-CSRF-TOKEN': this.csrfToken,
                             },
                         });
 
@@ -236,6 +193,56 @@
                         console.error('Error reintentando:', e);
                         cert.status = 'failed';
                     }
+                },
+
+                async cancelarGeneracion() {
+                    const result = await swalConfirm({
+                        title: 'Cancelar generación',
+                        text: 'Se detendrá el procesamiento de todos los certificados pendientes.',
+                        icon: 'warning',
+                        confirmButtonText: 'Sí, cancelar',
+                        cancelButtonText: 'Volver',
+                        confirmButtonColor: '#B54B3F',
+                    });
+                    if (!result.isConfirmed) return;
+
+                    try {
+                        const res = await fetch(this.cancelUrl, {
+                            method: 'POST',
+                            headers: { 'X-CSRF-TOKEN': this.csrfToken },
+                        });
+                        if (res.ok) {
+                            this.certificates = this.certificates.map(c =>
+                                (c.status === 'pending' || c.status === 'processing')
+                                    ? { ...c, status: 'cancelled' }
+                                    : c
+                            );
+                            clearInterval(this.pollTimer);
+                        }
+                    } catch (e) {
+                        console.error('Error cancelando:', e);
+                    }
+                },
+
+                async regenerarConsulta() {
+                    const result = await swalConfirm({
+                        title: 'Regenerar consulta',
+                        text: 'Se creará una nueva consulta con los mismos datos y sitios.',
+                        icon: 'question',
+                        confirmButtonText: 'Sí, regenerar',
+                        cancelButtonText: 'Cancelar',
+                    });
+                    if (!result.isConfirmed) return;
+
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = this.regenerateUrl;
+                    form.innerHTML = `
+                        <input type="hidden" name="_token" value="${this.csrfToken}">
+                        <input type="hidden" name="_method" value="POST">
+                    `;
+                    document.body.appendChild(form);
+                    form.submit();
                 },
             };
         }

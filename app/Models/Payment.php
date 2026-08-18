@@ -11,8 +11,8 @@ class Payment extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'reference', 'amount_in_cents',
-        'wompi_transaction_id', 'status', 'raw_payload',
+        'user_id', 'reference', 'payment_provider', 'amount_in_cents',
+        'wompi_transaction_id', 'gateway_transaction_id', 'status', 'raw_payload',
     ];
 
     protected function casts(): array
