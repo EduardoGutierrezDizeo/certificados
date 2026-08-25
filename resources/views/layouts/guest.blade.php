@@ -12,6 +12,9 @@
         <link href="https://fonts.bunny.net/css?family=source-serif-4:400,600,700&display=swap" rel="stylesheet" />
         <link href="https://fonts.bunny.net/css?family=ibm-plex-mono:400,500&display=swap" rel="stylesheet" />
 
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="font-sans text-carbon antialiased">
@@ -32,6 +35,11 @@
             <p class="mt-8 text-xs text-carbon/50 tracking-wide">
                 Certificados de antecedentes, verificados y en un solo lugar.
             </p>
+
+            <div class="mt-4 flex gap-4 text-xs text-carbon/40">
+                <a href="{{ route('legal.terms') }}" class="hover:text-ink-700 transition">Términos y Condiciones</a>
+                <a href="{{ route('legal.privacy') }}" class="hover:text-ink-700 transition">Política de Datos</a>
+            </div>
         </div>
     </body>
 </html>

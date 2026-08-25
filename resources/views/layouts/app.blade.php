@@ -50,7 +50,21 @@
                 <main class="flex-1 p-6">
                     {{ $slot }}
                 </main>
+
+                <footer class="border-t border-ink-100 py-4 px-6">
+                    <div class="flex items-center justify-between text-xs text-carbon/40">
+                        <span>CertiCheck</span>
+                        <div class="flex gap-4">
+                            <a href="{{ route('legal.terms') }}" class="hover:text-ink-700 transition">Términos y Condiciones</a>
+                            <a href="{{ route('legal.privacy') }}" class="hover:text-ink-700 transition">Política de Datos</a>
+                        </div>
+                    </div>
+                </footer>
             </div>
         </div>
+
+        @hasrole('abogado')
+            <x-session-checker />
+        @endhasrole
     </body>
 </html>

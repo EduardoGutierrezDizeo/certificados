@@ -21,23 +21,32 @@
                 @error('email') <p class="mt-1 text-xs text-rust">{{ $message }}</p> @enderror
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label for="plan" class="block text-sm font-medium text-carbon mb-1">Plan</label>
-                    <input type="text" id="plan" name="plan" value="{{ old('plan', 'standard') }}"
-                           class="w-full rounded-md border-ink-100 text-sm focus:border-ink-600 focus:ring-ink-600">
-                    @error('plan') <p class="mt-1 text-xs text-rust">{{ $message }}</p> @enderror
+            @if ($plans->isEmpty())
+                <div class="bg-brass-50 border border-brass-200 rounded-md p-4 text-sm text-brass-700">
+                    No hay planes de suscripción activos. Debes
+                    <a href="{{ route('admin.subscription-plans.create') }}" class="underline font-medium hover:text-brass-800">crear un plan</a>
+                    antes de poder asignar cuentas a abogados.
                 </div>
+            @else
                 <div>
-                    <label for="duration_months" class="block text-sm font-medium text-carbon mb-1">Vigencia (meses)</label>
-                    <input type="number" id="duration_months" name="duration_months" value="{{ old('duration_months', 1) }}" min="1" max="36"
-                           class="w-full rounded-md border-ink-100 text-sm focus:border-ink-600 focus:ring-ink-600">
-                    @error('duration_months') <p class="mt-1 text-xs text-rust">{{ $message }}</p> @enderror
+                    <label for="subscription_plan_id" class="block text-sm font-medium text-carbon mb-1">Plan de suscripción</label>
+                    <select id="subscription_plan_id" name="subscription_plan_id"
+                            class="w-full rounded-md border-ink-100 text-sm focus:border-ink-600 focus:ring-ink-600">
+                        <option value="">Seleccionar plan...</option>
+                        @foreach ($plans as $plan)
+                            <option value="{{ $plan->id }}" {{ old('subscription_plan_id') == $plan->id ? 'selected' : '' }}>
+                                {{ $plan->name }} — {{ $plan->formattedPrice() }} — {{ $plan->duration_months }} {{ $plan->duration_months === 1 ? 'mes' : 'meses' }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <p class="mt-1 text-xs text-carbon/50">La suscripción se otorgará sin cobro. El abogado tendrá acceso inmediato.</p>
+                    @error('subscription_plan_id') <p class="mt-1 text-xs text-rust">{{ $message }}</p> @enderror
                 </div>
-            </div>
+            @endif
 
             <div class="pt-2 flex justify-end">
-                <button type="submit" class="bg-ink-700 hover:bg-ink-800 text-white text-sm font-medium px-6 py-3 rounded-md transition">
+                <button type="submit" {{ $plans->isEmpty() ? 'disabled' : '' }}
+                        class="bg-ink-700 hover:bg-ink-800 text-white text-sm font-medium px-6 py-3 rounded-md transition disabled:opacity-50 disabled:cursor-not-allowed">
                     Crear cuenta
                 </button>
             </div>

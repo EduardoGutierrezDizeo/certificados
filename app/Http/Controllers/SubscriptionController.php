@@ -3,35 +3,60 @@
 namespace App\Http\Controllers;
 
 use App\Models\Payment;
+use App\Models\SubscriptionPlan;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class SubscriptionController extends Controller
 {
-    public function show()
+    public function show(): View
     {
-        $priceInCents = ((int) config('services.subscription_price_cop', 50000)) * 100;
+        $plans = SubscriptionPlan::active()->get();
 
-        return view('subscription.show', ['priceInCents' => $priceInCents]);
+        return view('subscription.show', ['plans' => $plans]);
     }
 
-    public function checkout()
+    public function manage(): View
     {
-        $priceInCents = ((int) config('services.subscription_price_cop', 50000)) * 100;
+        $subscription = auth()->user()->currentSubscription();
+
+        return view('subscription.manage', ['subscription' => $subscription]);
+    }
+
+    public function cancelSubscription(): RedirectResponse
+    {
+        $user = auth()->user();
+        $subscription = $user->currentSubscription();
+
+        if (! $subscription || ! $subscription->isActive()) {
+            return back()->withErrors(['subscription' => 'No tienes una suscripción activa para cancelar.']);
+        }
+
+        $subscription->cancel();
+
+        return redirect()->route('subscription.manage')
+            ->with('success', 'Tu suscripción fue cancelada. Ya no tienes acceso a las funciones premium.');
+    }
+
+    public function checkout(SubscriptionPlan $subscriptionPlan): View
+    {
         $reference = 'CERTICHECK-'.auth()->id().'-'.Str::random(10);
 
         Payment::create([
             'user_id' => auth()->id(),
+            'subscription_plan_id' => $subscriptionPlan->id,
             'reference' => $reference,
             'payment_provider' => 'epayco',
-            'amount_in_cents' => $priceInCents,
+            'amount_in_cents' => $subscriptionPlan->price_in_cents,
             'status' => 'pending',
         ]);
 
         return view('subscription.checkout', [
-            'amount' => $priceInCents / 100,
+            'amount' => $subscriptionPlan->price_in_cents / 100,
             'reference' => $reference,
+            'planName' => $subscriptionPlan->name,
             'publicKey' => config('services.epayco.public_key'),
             'testMode' => config('services.epayco.test_mode'),
         ]);
@@ -61,12 +86,5 @@ class SubscriptionController extends Controller
         return response()->json([
             'active' => auth()->user()->hasActiveSubscription(),
         ]);
-    }
-
-    public function paymentHistory(): View
-    {
-        $payments = auth()->user()->payments()->latest()->paginate(15);
-
-        return view('subscription.history', compact('payments'));
     }
 }

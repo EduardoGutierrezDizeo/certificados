@@ -20,14 +20,13 @@ class SubscriptionExpiringSoon extends Notification
 
     public function toMail($notifiable): MailMessage
     {
-        $diasRestantes = now()->diffInDays($this->subscription->ends_at, false);
+        $planNombre = $this->subscription->plan;
 
         return (new MailMessage)
             ->subject('Tu suscripción a CertiCheck vence pronto')
             ->greeting("Hola {$notifiable->name},")
-            ->line("Tu suscripción vence el {$this->subscription->ends_at->format('d/m/Y')} (en {$diasRestantes} días).")
+            ->line("Tu plan {$planNombre} vence el {$this->subscription->ends_at->format('d/m/Y')} (en 3 días).")
             ->line('Para no perder acceso a la generación de certificados, renueva antes de esa fecha.')
-            ->action('Renovar suscripción', route('subscription.show'))
             ->line('Si ya renovaste, puedes ignorar este mensaje.');
     }
 }

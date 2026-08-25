@@ -143,8 +143,12 @@
         </section>
 
         <footer class="border-t border-ink-100 py-6">
-            <div class="max-w-6xl mx-auto px-6 text-xs text-carbon/40">
-                CertiCheck — Certificados de antecedentes para abogados en Colombia.
+            <div class="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-carbon/40">
+                <span>CertiCheck — Certificados de antecedentes para abogados en Colombia.</span>
+                <div class="flex gap-4">
+                    <a href="{{ route('legal.terms') }}" class="hover:text-ink-700 transition">Términos y Condiciones</a>
+                    <a href="{{ route('legal.privacy') }}" class="hover:text-ink-700 transition">Política de Datos</a>
+                </div>
             </div>
         </footer>
 

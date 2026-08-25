@@ -27,6 +27,30 @@
                 </svg>
                 Abogados
             </a>
+
+            @php $pendingReports = App\Models\ErrorReport::where('status', 'pending')->count(); @endphp
+            <a href="{{ route('admin.error-reports.index') }}"
+                class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition
+                      {{ request()->routeIs('admin.error-reports.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}">
+                <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                Reportes
+                @if ($pendingReports > 0)
+                    <span class="ml-auto bg-brass-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{{ $pendingReports }}</span>
+                @endif
+            </a>
+
+            <a href="{{ route('admin.subscription-plans.index') }}"
+                class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition
+                      {{ request()->routeIs('admin.subscription-plans.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}">
+                <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                Planes
+            </a>
         @endhasrole
 
         @hasrole('abogado')
@@ -59,14 +83,24 @@
                 Historial
             </a>
 
-            <a href="{{ route('subscription.history') }}"
+            <a href="{{ route('subscription.manage') }}"
                 class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition
-              {{ request()->routeIs('subscription.history') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}">
+              {{ request()->routeIs('subscription.manage') || request()->routeIs('subscription.cancel') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}">
                 <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
                         d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
-                Mis pagos
+                Mi suscripción
+            </a>
+
+            <a href="{{ route('error-reports.create') }}"
+                class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition
+              {{ request()->routeIs('error-reports.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}">
+                <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                Reportar problema
             </a>
         @endhasrole
     </nav>

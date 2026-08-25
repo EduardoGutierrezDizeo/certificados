@@ -21,8 +21,8 @@
         });
 
         const data = {
-            name: 'Suscripción CertiCheck - Plan Standard',
-            description: 'Suscripción mensual CertiCheck',
+            name: 'Suscripción CertiCheck - {{ $planName }}',
+            description: 'Suscripción CertiCheck - {{ $planName }}',
             invoice: '{{ $reference }}',
             currency: 'cop',
             amount: '{{ $amount }}',

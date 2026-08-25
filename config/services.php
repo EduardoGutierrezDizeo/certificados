@@ -47,6 +47,4 @@ return [
         'test_mode' => env('EPAYCO_TEST_MODE', true),
     ],
 
-    'subscription_price_cop' => env('SUBSCRIPTION_PRICE_COP', 50000),
-
 ];

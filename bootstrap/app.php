@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Middleware\EnsureSingleSession;
 use App\Http\Middleware\EnsureSubscriptionActive;
+use App\Http\Middleware\EnsureTermsAccepted;
 use App\Http\Middleware\ForcePasswordChange;
 use App\Http\Middleware\VerifyInternalApiKey;
 use Illuminate\Foundation\Application;
@@ -27,6 +29,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
             'force.password.change' => ForcePasswordChange::class,
             'subscription.active' => EnsureSubscriptionActive::class,
+            'single.session' => EnsureSingleSession::class,
+            'terms.accepted' => EnsureTermsAccepted::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

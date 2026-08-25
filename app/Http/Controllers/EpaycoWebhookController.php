@@ -57,6 +57,12 @@ class EpaycoWebhookController extends Controller
     private function activarSuscripcion(Payment $payment): void
     {
         $user = $payment->user;
+        $plan = $payment->subscriptionPlan;
+
+        $durationMonths = $plan ? $plan->duration_months : 1;
+        $planName = $plan ? $plan->name : 'standard';
+        $subscriptionPlanId = $plan?->id;
+
         $suscripcionActiva = $user->subscriptions()
             ->where('status', 'active')
             ->where('ends_at', '>=', now())
@@ -65,14 +71,17 @@ class EpaycoWebhookController extends Controller
 
         if ($suscripcionActiva) {
             $suscripcionActiva->update([
-                'ends_at' => $suscripcionActiva->ends_at->addMonth(),
+                'ends_at' => $suscripcionActiva->ends_at->addMonths($durationMonths),
+                'subscription_plan_id' => $subscriptionPlanId ?? $suscripcionActiva->subscription_plan_id,
+                'plan' => $planName,
             ]);
         } else {
             $user->subscriptions()->create([
-                'plan' => 'standard',
+                'subscription_plan_id' => $subscriptionPlanId,
+                'plan' => $planName,
                 'status' => 'active',
                 'starts_at' => now(),
-                'ends_at' => now()->addMonth(),
+                'ends_at' => now()->addMonths($durationMonths),
             ]);
         }
     }

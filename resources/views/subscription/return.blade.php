@@ -46,7 +46,7 @@
                     <p class="text-xs text-carbon/50 mb-6">
                         Puede que hayas cancelado el proceso o que el banco no haya respondido a tiempo. No se te realizó ningún cobro.
                     </p>
-                    <a href="{{ route('subscription.checkout') }}" class="inline-flex bg-ink-700 hover:bg-ink-800 text-white text-sm font-medium px-6 py-3 rounded-md transition">
+                    <a href="{{ route('subscription.show') }}" class="inline-flex bg-ink-700 hover:bg-ink-800 text-white text-sm font-medium px-6 py-3 rounded-md transition">
                         Intentar de nuevo
                     </a>
                 </div>
@@ -60,7 +60,7 @@
                         <a href="{{ route('dashboard') }}" class="text-ink-700 underline">entrar al panel</a> en un momento.
                         Si no llegaste a completar el pago, podés intentarlo de nuevo.
                     </p>
-                    <a href="{{ route('subscription.checkout') }}" class="inline-flex bg-ink-700 hover:bg-ink-800 text-white text-sm font-medium px-6 py-3 rounded-md transition">
+                    <a href="{{ route('subscription.show') }}" class="inline-flex bg-ink-700 hover:bg-ink-800 text-white text-sm font-medium px-6 py-3 rounded-md transition">
                         Reintentar el pago
                     </a>
                 </div>

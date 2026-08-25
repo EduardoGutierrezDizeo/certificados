@@ -68,7 +68,13 @@
                                         'cancelled' => 'bg-rust/10 text-rust',
                                         default => 'bg-ink-50 text-ink-600',
                                     } }}">
-                                    {{ $sub ? ucfirst($sub->status) : 'Sin suscripción' }}
+                                    {{ match($sub?->status) {
+                                        'active' => 'Activa',
+                                        'suspended' => 'Suspendida',
+                                        'cancelled' => 'Cancelada',
+                                        'pending' => 'Pendiente',
+                                        default => 'Sin suscripción',
+                                    } }}
                                 </span>
                             </td>
                             <td class="px-5 py-3.5 text-carbon/60">

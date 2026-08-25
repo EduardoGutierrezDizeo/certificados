@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Payment;
+use App\Models\SubscriptionPlan;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -28,7 +30,9 @@ class LawyerController extends Controller
 
     public function create()
     {
-        return view('admin.lawyers.create');
+        $plans = SubscriptionPlan::active()->get();
+
+        return view('admin.lawyers.create', compact('plans'));
     }
 
     public function store(Request $request)
@@ -36,9 +40,18 @@ class LawyerController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'unique:users,email'],
-            'plan' => ['required', 'string', 'max:100'],
-            'duration_months' => ['required', 'integer', 'min:1', 'max:36'],
+            'subscription_plan_id' => ['required', 'integer', 'exists:subscription_plans,id'],
         ]);
+
+        $plan = SubscriptionPlan::where('id', $validated['subscription_plan_id'])
+            ->where('is_active', true)
+            ->first();
+
+        if (! $plan) {
+            return back()->withErrors([
+                'subscription_plan_id' => 'El plan seleccionado no está activo.',
+            ])->withInput();
+        }
 
         $temporaryPassword = Str::password(12);
 
@@ -52,10 +65,24 @@ class LawyerController extends Controller
         $lawyer->assignRole('abogado');
 
         $lawyer->subscriptions()->create([
-            'plan' => $validated['plan'],
+            'subscription_plan_id' => $plan->id,
+            'plan' => $plan->name,
             'status' => 'active',
             'starts_at' => now(),
-            'ends_at' => now()->addMonths((int) $validated['duration_months']),
+            'ends_at' => now()->addMonths($plan->duration_months),
+        ]);
+
+        Payment::create([
+            'user_id' => $lawyer->id,
+            'subscription_plan_id' => $plan->id,
+            'reference' => 'ADMIN-GRANT-'.$lawyer->id.'-'.Str::random(10),
+            'payment_provider' => 'admin_grant',
+            'amount_in_cents' => 0,
+            'status' => 'approved',
+            'raw_payload' => [
+                'granted_by_admin_id' => $request->user()->id,
+                'reason' => 'Cuenta creada manualmente por administrador',
+            ],
         ]);
 
         return redirect()

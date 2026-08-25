@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Notifications\ResetPassword;
+use App\Notifications\VerifyEmail;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -18,6 +20,9 @@ class User extends Authenticatable implements MustVerifyEmail
         'email',
         'password',
         'must_change_password',
+        'current_session_id',
+        'terms_accepted_at',
+        'terms_version_accepted',
     ];
 
     protected $hidden = [
@@ -29,6 +34,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return [
             'email_verified_at' => 'datetime',
+            'terms_accepted_at' => 'datetime',
             'password' => 'hashed',
             'must_change_password' => 'boolean',
         ];
@@ -54,11 +60,33 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Payment::class);
     }
 
+    public function errorReports(): HasMany
+    {
+        return $this->hasMany(ErrorReport::class, 'lawyer_id');
+    }
+
     public function hasActiveSubscription(): bool
     {
         return $this->subscriptions()
             ->where('status', 'active')
             ->where('ends_at', '>=', now())
             ->exists();
+    }
+
+    public function currentSubscription(): ?Subscription
+    {
+        return $this->subscriptions()
+            ->latest('starts_at')
+            ->first();
+    }
+
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new VerifyEmail);
+    }
+
+    public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
+    {
+        $this->notify(new ResetPassword($token));
     }
 }

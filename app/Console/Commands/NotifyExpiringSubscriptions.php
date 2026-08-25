@@ -17,7 +17,7 @@ class NotifyExpiringSubscriptions extends Command
         $subscriptions = Subscription::query()
             ->where('status', 'active')
             ->whereNull('expiry_notified_at')
-            ->whereBetween('ends_at', [now(), now()->addDays(3)])
+            ->whereDate('ends_at', now()->addDays(3))
             ->with('user')
             ->get();
 

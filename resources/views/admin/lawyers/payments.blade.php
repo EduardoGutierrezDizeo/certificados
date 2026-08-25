@@ -38,7 +38,13 @@
                                         'voided' => 'bg-ink-50 text-ink-600',
                                         default => 'bg-brass-50 text-brass-600',
                                     } }}">
-                                    {{ ucfirst($payment->status) }}
+                                    {{ match($payment->status) {
+                                        'approved' => 'Aprobado',
+                                        'declined' => 'Rechazado',
+                                        'error' => 'Error',
+                                        'voided' => 'Anulado',
+                                        default => ucfirst($payment->status),
+                                    } }}
                                 </span>
                             </td>
                         </tr>

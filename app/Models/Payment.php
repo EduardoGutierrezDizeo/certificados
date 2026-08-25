@@ -11,7 +11,7 @@ class Payment extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'reference', 'payment_provider', 'amount_in_cents',
+        'user_id', 'subscription_plan_id', 'reference', 'payment_provider', 'amount_in_cents',
         'wompi_transaction_id', 'gateway_transaction_id', 'status', 'raw_payload',
     ];
 
@@ -23,5 +23,10 @@ class Payment extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function subscriptionPlan(): BelongsTo
+    {
+        return $this->belongsTo(SubscriptionPlan::class);
     }
 }

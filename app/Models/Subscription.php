@@ -12,10 +12,12 @@ class Subscription extends Model
 
     protected $fillable = [
         'user_id',
+        'subscription_plan_id',
         'plan',
         'status',
         'starts_at',
         'ends_at',
+        'expiry_notified_at',
     ];
 
     protected function casts(): array
@@ -31,9 +33,22 @@ class Subscription extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function subscriptionPlan(): BelongsTo
+    {
+        return $this->belongsTo(SubscriptionPlan::class);
+    }
+
     public function isActive(): bool
     {
         return $this->status === 'active'
             && $this->ends_at->isFuture();
+    }
+
+    public function cancel(): void
+    {
+        $this->update([
+            'status' => 'cancelled',
+            'ends_at' => now(),
+        ]);
     }
 }

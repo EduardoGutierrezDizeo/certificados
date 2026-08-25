@@ -34,6 +34,7 @@ class RegisteredUserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'terms_accepted' => ['accepted'],
         ]);
 
         $user = User::create([
@@ -41,6 +42,8 @@ class RegisteredUserController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'must_change_password' => false,
+            'terms_accepted_at' => now(),
+            'terms_version_accepted' => config('legal.terms_version'),
         ]);
 
         $user->assignRole('abogado');
