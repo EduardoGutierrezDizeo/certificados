@@ -14,7 +14,10 @@ class CertificateRequestController extends Controller
             'status' => ['required', 'in:success,failed'],
             'error_message' => ['required_if:status,failed', 'nullable', 'string'],
             'pdf' => ['required_if:status,success', 'nullable', 'file', 'mimes:pdf', 'max:10240'],
+            'duration_seconds' => ['nullable', 'integer', 'min:0'],
         ]);
+
+        $updateData = ['duration_seconds' => $validated['duration_seconds'] ?? null];
 
         if ($validated['status'] === 'success') {
             $path = $request->file('pdf')->store(
@@ -22,18 +25,16 @@ class CertificateRequestController extends Controller
                 'local'
             );
 
-            $certificateRequest->update([
-                'status' => 'success',
-                'pdf_path' => $path,
-                'error_message' => null,
-            ]);
+            $updateData['status'] = 'success';
+            $updateData['pdf_path'] = $path;
+            $updateData['error_message'] = null;
         } else {
-            $certificateRequest->update([
-                'status' => 'failed',
-                'error_message' => $validated['error_message'],
-                'pdf_path' => null,
-            ]);
+            $updateData['status'] = 'failed';
+            $updateData['error_message'] = $validated['error_message'];
+            $updateData['pdf_path'] = null;
         }
+
+        $certificateRequest->update($updateData);
 
         $certificateRequest->consultationRequest->refreshStatus();
 

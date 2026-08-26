@@ -1,6 +1,7 @@
 import json
 import os
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 import redis
@@ -45,7 +46,7 @@ def get_browser():
     return _thread_local.browser
 
 
-def reportar_resultado(certificate_request_id: int, resultado: dict):
+def reportar_resultado(certificate_request_id: int, resultado: dict, duration_seconds: int | None = None):
     url = f"{LARAVEL_BASE_URL}/api/internal/certificate-requests/{certificate_request_id}/complete"
     headers = {"X-Internal-Api-Key": INTERNAL_API_KEY}
 
@@ -55,6 +56,8 @@ def reportar_resultado(certificate_request_id: int, resultado: dict):
             with open(pdf_path, "rb") as f:
                 files = {"pdf": (os.path.basename(pdf_path), f, "application/pdf")}
                 data = {"status": "success"}
+                if duration_seconds is not None:
+                    data["duration_seconds"] = duration_seconds
                 resp = requests.post(url, headers=headers, data=data, files=files, timeout=30)
             try:
                 os.remove(pdf_path)
@@ -65,6 +68,8 @@ def reportar_resultado(certificate_request_id: int, resultado: dict):
                 "status": "failed",
                 "error_message": resultado.get("error_message", "Error desconocido"),
             }
+            if duration_seconds is not None:
+                data["duration_seconds"] = duration_seconds
             resp = requests.post(url, headers=headers, data=data, timeout=30)
 
         if resp.status_code != 200:
@@ -89,6 +94,7 @@ def procesar_job(payload: dict):
 
     try:
         browser = get_browser()
+        start_time = time.monotonic()
         resultado = handler(
             payload["document_type"],
             payload["document_number"],
@@ -96,10 +102,12 @@ def procesar_job(payload: dict):
             payload.get("issuance_date"),
             browser=browser,
         )
+        duration_seconds = int(round(time.monotonic() - start_time))
     except Exception as e:
         resultado = {"status": "failed", "error_message": f"Error inesperado en el worker: {e}"}
+        duration_seconds = None
 
-    reportar_resultado(certificate_request_id, resultado)
+    reportar_resultado(certificate_request_id, resultado, duration_seconds=duration_seconds)
 
 
 def main():

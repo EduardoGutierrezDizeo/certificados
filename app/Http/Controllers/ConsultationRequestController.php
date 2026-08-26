@@ -51,14 +51,18 @@ class ConsultationRequestController extends Controller
                 'status' => 'pending',
             ]);
 
-            foreach ($validated['sites'] as $site) {
-                $certificateRequest = $consultationRequest->certificateRequests()->create([
-                    'site' => $site,
-                    'status' => 'pending',
-                ]);
+            $certificateRequests = collect();
 
-                $dispatcher->dispatch($certificateRequest);
+            foreach ($validated['sites'] as $site) {
+                $certificateRequests->push(
+                    $consultationRequest->certificateRequests()->create([
+                        'site' => $site,
+                        'status' => 'pending',
+                    ])
+                );
             }
+
+            $dispatcher->dispatchMultiple($certificateRequests);
 
             return $consultationRequest;
         });
@@ -214,14 +218,18 @@ class ConsultationRequestController extends Controller
                 'status' => 'pending',
             ]);
 
-            foreach ($sites as $site) {
-                $certificateRequest = $consultationRequest->certificateRequests()->create([
-                    'site' => $site,
-                    'status' => 'pending',
-                ]);
+            $certificateRequests = collect();
 
-                $dispatcher->dispatch($certificateRequest);
+            foreach ($sites as $site) {
+                $certificateRequests->push(
+                    $consultationRequest->certificateRequests()->create([
+                        'site' => $site,
+                        'status' => 'pending',
+                    ])
+                );
             }
+
+            $dispatcher->dispatchMultiple($certificateRequests);
 
             return $consultationRequest;
         });

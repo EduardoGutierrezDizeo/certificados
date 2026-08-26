@@ -16,6 +16,7 @@ class CertificateRequest extends Model
         'status',
         'error_message',
         'pdf_path',
+        'duration_seconds',
     ];
 
     public function consultationRequest(): BelongsTo
