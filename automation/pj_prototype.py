@@ -1,13 +1,12 @@
-import os
 import time
-from dotenv import load_dotenv
-from playwright.sync_api import sync_playwright
-from twocaptcha import TwoCaptcha
 from datetime import datetime
 
+from dotenv import load_dotenv
+from playwright.sync_api import sync_playwright
+
+from captcha_solver import resolver_recaptcha_v2
+
 load_dotenv()
-API_KEY = os.getenv("3745109ee89c0c9ef59e4b4bb68a0189")
-solver = TwoCaptcha(API_KEY)
 
 URL = "https://antecedentes.policia.gov.co:7005/WebJudicial/antecedentes.xhtml"
 SITE_KEY = "6LcsIwQaAAAAAFCsaI-dkR6hgKsZwwJRsmE0tIJH"
@@ -33,9 +32,9 @@ def consultar_pj(cedula: str) -> dict:
         page.fill("#cedulaInput", cedula)
 
         t0 = time.time()
-        resultado_captcha = solver.recaptcha(sitekey=SITE_KEY, url=URL)
+        resultado_captcha = resolver_recaptcha_v2(SITE_KEY, URL)
         t1 = time.time()
-        print(f"[DEBUG] 2Captcha tardó {t1 - t0:.1f} segundos en resolver")
+        print(f"[DEBUG] CAPTCHA resuelto en {t1 - t0:.1f}s (proveedor: {resultado_captcha['provider']})")
 
         token = resultado_captcha["code"]
 
@@ -74,6 +73,5 @@ def consultar_pj(cedula: str) -> dict:
 
 
 if __name__ == "__main__":
-    print(f"[DEBUG] Saldo actual en 2Captcha: ${solver.balance()}")
     resultado = consultar_pj(CEDULA)
     print(resultado)

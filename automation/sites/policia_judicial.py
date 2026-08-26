@@ -1,15 +1,13 @@
-import os
 from datetime import datetime
 
 from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright
-from twocaptcha import TwoCaptcha
 
+from captcha_solver import resolver_recaptcha_v2
 from config import TEMP_CERTS_DIR
 from sites import crear_context_stealthed
 
 load_dotenv()
-solver = TwoCaptcha(os.getenv("TWOCAPTCHA_API_KEY"))
 
 URL = "https://antecedentes.policia.gov.co:7005/WebJudicial/antecedentes.xhtml"
 SITE_KEY = "6LcsIwQaAAAAAFCsaI-dkR6hgKsZwwJRsmE0tIJH"
@@ -43,7 +41,7 @@ def consultar(document_type: str, document_number: str, full_name: str | None, i
         page.fill("#cedulaInput", document_number)
 
         try:
-            resultado_captcha = solver.recaptcha(sitekey=SITE_KEY, url=URL)
+            resultado_captcha = resolver_recaptcha_v2(SITE_KEY, URL)
         except Exception as e:
             page.close()
             return {"status": "failed", "error_message": f"Error resolviendo CAPTCHA: {e}"}

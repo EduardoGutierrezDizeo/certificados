@@ -1,13 +1,12 @@
-import os
 import time
-from dotenv import load_dotenv
-from playwright.sync_api import sync_playwright
-from twocaptcha import TwoCaptcha
 from datetime import datetime
 
+from dotenv import load_dotenv
+from playwright.sync_api import sync_playwright
+
+from captcha_solver import resolver_recaptcha_v2
+
 load_dotenv()
-API_KEY = os.getenv("TWOCAPTCHA_API_KEY")
-solver = TwoCaptcha(API_KEY)
 
 URL = "https://cfiscal.contraloria.gov.co/certificados/certificadopersonanatural.aspx"
 SITE_KEY = "6LcfnjwUAAAAAIyl8ehhox7ZYqLQSVl_w1dmYIle"
@@ -26,7 +25,10 @@ def consultar_contraloria(cedula: str) -> dict:
         page.fill("#txtNumeroDocumento", cedula)
 
         try:
-            resultado_captcha = solver.recaptcha(sitekey=SITE_KEY, url=URL)
+            t0 = time.time()
+            resultado_captcha = resolver_recaptcha_v2(SITE_KEY, URL)
+            t1 = time.time()
+            print(f"[DEBUG] CAPTCHA resuelto en {t1 - t0:.1f}s (proveedor: {resultado_captcha['provider']})")
         except Exception as e:
             browser.close()
             return {"status": "failed", "error_message": f"Error resolviendo CAPTCHA: {e}"}
@@ -49,7 +51,6 @@ def consultar_contraloria(cedula: str) -> dict:
             browser.close()
             return {"status": "success", "pdf_path": pdf_path}
         except Exception:
-            # No hubo descarga: revisamos si el sitio mostró un mensaje de error en pantalla
             page.wait_for_load_state("networkidle", timeout=10000)
             page.wait_for_timeout(1000)
             mensaje_error = page.locator("#alerts-container-validation").inner_text().strip()
@@ -60,6 +61,5 @@ def consultar_contraloria(cedula: str) -> dict:
 
 
 if __name__ == "__main__":
-    print(f"[DEBUG] Saldo actual en 2Captcha: ${solver.balance()}")
     resultado = consultar_contraloria(CEDULA)
     print(resultado)

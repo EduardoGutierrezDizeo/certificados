@@ -10,4 +10,8 @@ requests==2.34.2
 six==1.17.0
 tzdata==2025.2
 urllib3==2.7.0
+playwright==1.53.0
 playwright-stealth==2.0.3
+2captcha-python==2.1.0
+capsolver==1.0.7
+python-dotenv==1.1.0

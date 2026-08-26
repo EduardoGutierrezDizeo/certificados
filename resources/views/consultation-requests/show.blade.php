@@ -157,6 +157,7 @@
                 },
 
                 init() {
+                    if (this.pollTimer) return;
                     if (this.allDone) return;
 
                     this.pollTimer = setInterval(async () => {
@@ -167,6 +168,7 @@
 
                             if (this.allDone) {
                                 clearInterval(this.pollTimer);
+                                this.pollTimer = null;
                             }
                         } catch (e) {
                             console.error('Error consultando estado:', e);
@@ -186,9 +188,7 @@
                             },
                         });
 
-                        if (!this.pollTimer) {
-                            this.init();
-                        }
+                        this.init();
                     } catch (e) {
                         console.error('Error reintentando:', e);
                         cert.status = 'failed';
@@ -218,6 +218,7 @@
                                     : c
                             );
                             clearInterval(this.pollTimer);
+                            this.pollTimer = null;
                         }
                     } catch (e) {
                         console.error('Error cancelando:', e);
