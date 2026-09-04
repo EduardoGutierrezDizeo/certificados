@@ -83,6 +83,16 @@
                 Historial
             </a>
 
+            <a href="{{ route('storage.index') }}"
+                class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition
+              {{ request()->routeIs('storage.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}">
+                <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
+                        d="M4 7v4m0 0v6a2 2 0 002 2h12a2 2 0 002-2v-6m-16 0h16M4 7l2-3h12l2 3M4 7h16M9 12h6" />
+                </svg>
+                Almacenamiento
+            </a>
+
             <a href="{{ route('subscription.manage') }}"
                 class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition
               {{ request()->routeIs('subscription.manage') || request()->routeIs('subscription.cancel') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}">

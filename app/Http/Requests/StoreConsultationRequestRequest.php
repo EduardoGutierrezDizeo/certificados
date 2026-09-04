@@ -26,6 +26,7 @@ class StoreConsultationRequestRequest extends FormRequest
             ],
             'sites' => ['required', 'array', 'min:1'],
             'sites.*' => ['in:comptroller,judicial_police,rnmc,attorney_general'],
+            'confirm_delete_oldest' => ['sometimes', 'boolean'],
         ];
     }
 }

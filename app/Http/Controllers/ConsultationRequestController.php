@@ -7,6 +7,7 @@ use App\Models\CertificateRequest;
 use App\Models\ConsultationRequest;
 use App\Models\Subject;
 use App\Services\CertificateJobDispatcher;
+use App\Services\LawyerStorageService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,11 +21,31 @@ class ConsultationRequestController extends Controller
         return view('consultation-requests.create');
     }
 
-    public function store(StoreConsultationRequestRequest $request, CertificateJobDispatcher $dispatcher)
+    public function store(StoreConsultationRequestRequest $request, CertificateJobDispatcher $dispatcher, LawyerStorageService $storageService)
     {
         $validated = $request->validated();
 
-        $consultationRequest = DB::transaction(function () use ($validated, $dispatcher) {
+        $n = count($validated['sites']);
+
+        $toDelete = collect();
+
+        if (! $storageService->hasSpaceFor($request->user(), $n)) {
+            if (! $request->boolean('confirm_delete_oldest')) {
+                return response()->json([
+                    'needs_confirmation' => true,
+                    'to_delete' => $storageService->oldestCertificatesToFree($request->user(), $n)
+                        ->map(fn ($cr) => $this->toDeletePayload($cr)),
+                ], 409);
+            }
+
+            $toDelete = $storageService->oldestCertificatesToFree($request->user(), $n);
+        }
+
+        $consultationRequest = DB::transaction(function () use ($validated, $dispatcher, $storageService, $toDelete) {
+            if ($toDelete->isNotEmpty()) {
+                $storageService->freeCertificates($toDelete);
+            }
+
             $subject = Subject::firstOrCreate(
                 [
                     'document_type' => $validated['document_type'],
@@ -236,6 +257,73 @@ class ConsultationRequestController extends Controller
 
         return redirect()->route('consultation-requests.show', $newConsultation)
             ->with('status', 'Consulta regenerada correctamente.');
+    }
+
+    public function regenerateCertificate(
+        ConsultationRequest $consultationRequest,
+        CertificateRequest $certificateRequest,
+        CertificateJobDispatcher $dispatcher,
+        LawyerStorageService $storageService,
+        Request $request,
+    ) {
+        $perteneceAlAbogado = $consultationRequest->lawyer_id === auth()->id();
+        $esAdmin = auth()->user()->hasRole('admin');
+        abort_unless($perteneceAlAbogado || $esAdmin, 403);
+
+        abort_unless($certificateRequest->consultation_request_id === $consultationRequest->id, 404);
+
+        abort_if($certificateRequest->pdf_path, 422, 'Este certificado ya tiene un PDF generado. Para volver a generarlo, primero debes liberar espacio.');
+
+        $n = 1;
+
+        $toDelete = collect();
+
+        if (! $storageService->hasSpaceFor(auth()->user(), $n)) {
+            if (! $request->boolean('confirm_delete_oldest')) {
+                return response()->json([
+                    'needs_confirmation' => true,
+                    'to_delete' => $storageService->oldestCertificatesToFree(
+                        auth()->user(),
+                        $n,
+                        $consultationRequest->id,
+                    )->map(fn ($cr) => $this->toDeletePayload($cr)),
+                ], 409);
+            }
+
+            $toDelete = $storageService->oldestCertificatesToFree(
+                auth()->user(),
+                $n,
+                $consultationRequest->id,
+            );
+        }
+
+        DB::transaction(function () use ($storageService, $toDelete, $certificateRequest, $dispatcher) {
+            if ($toDelete->isNotEmpty()) {
+                $storageService->freeCertificates($toDelete);
+            }
+
+            $certificateRequest->update([
+                'status' => 'pending',
+                'error_message' => null,
+            ]);
+
+            $dispatcher->dispatch($certificateRequest);
+        });
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Arma el payload de un certificado candidato a borrar para el frontend.
+     */
+    private function toDeletePayload(CertificateRequest $certificateRequest): array
+    {
+        return [
+            'site' => $certificateRequest->site,
+            'subject_name' => $certificateRequest->consultationRequest->subject->full_name,
+            'document_number' => $certificateRequest->consultationRequest->subject->document_number,
+            'pdf_generated_at' => $certificateRequest->pdf_generated_at,
+        ];
     }
 
     public function downloadZip(ConsultationRequest $consultationRequest)

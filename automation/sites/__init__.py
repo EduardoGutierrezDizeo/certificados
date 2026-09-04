@@ -39,6 +39,22 @@ _CLIENT_HINT_HEADERS = (
     "sec-ch-ua-mobile",
 )
 
+# Hosts de terceros del widget de reCAPTCHA v2. Sus requests NO deben pasar por el
+# handler de reescritura de headers: deben dejarse pasar de inmediato (route.continue_())
+# para que no compitan por el hilo de Python cuando está bloqueado en CapSolver
+# (causa race condition: #g-recaptcha-response aún no inyectado -> TypeError al usar el
+# elemento). El fix del header Sec-CH-UA solo aplica al portal gubernamental propio.
+_RECAPTCHA_HOST_SUFFIXES = (
+    ".google.com",
+    ".gstatic.com",
+)
+
+
+def _es_host_recaptcha(url: str) -> bool:
+    """True si la URL pertenece a un host de terceros del widget de reCAPTCHA."""
+    host = url.split("://", 1)[-1].split("/", 1)[0].lower()
+    return any(host == s.lstrip(".") or host.endswith(s) for s in _RECAPTCHA_HOST_SUFFIXES)
+
 
 def crear_context_stealthed(browser: Browser, **kwargs) -> BrowserContext:
     context = browser.new_context(**kwargs)
@@ -75,6 +91,13 @@ def _aplicar_fix_headless(context: BrowserContext, browser: Browser) -> None:
     sec_ch_ua_full_limpio = _sec_ch_ua_full_limpio(major, full_version)
 
     def _handler(route):
+        # ReCAPTCHA de terceros: dejar pasar SIN pasar por la lógica de headers ni por
+        # ningún procesamiento adicional, para no bloquear sus subrecursos mientras Python
+        # está detenido en CapSolver.
+        if _es_host_recaptcha(route.request.url):
+            route.continue_()
+            return
+
         headers = dict(route.request.headers)
         necesita_fix = any(
             _HEADLESS_MARCA in headers.get(h, "")

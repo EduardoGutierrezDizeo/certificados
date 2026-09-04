@@ -175,6 +175,13 @@ def procesar_job(payload: dict):
     certificate_request_id = payload["certificate_request_id"]
     site = payload["site"]
 
+    logger.info(
+        "[RECIBIDO] id=%s site=%s full_name=%r",
+        certificate_request_id,
+        site,
+        payload.get("full_name"),
+    )
+
     handler = SITE_HANDLERS.get(site)
 
     if handler is None:

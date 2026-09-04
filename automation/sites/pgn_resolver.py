@@ -29,6 +29,27 @@ def _sin_tildes(texto: str) -> str:
     ).upper().strip()
 
 
+# Topónimos colombianos conocidos (departamentos y sus capitales, ya sea la
+# clave o el valor de CAPITALES_DEPARTAMENTOS). Se usan para descartar un
+# "primer nombre" sospechoso: si el dato entrante de full_name es, p. ej.,
+# "BARRANQUILLA", no queremos responder con un topónimo como si fuera nombre.
+TOPONIMOS = frozenset(
+    {_sin_tildes(nombre) for nombre in CAPITALES_DEPARTAMENTOS}
+    | {_sin_tildes(valor) for valor in CAPITALES_DEPARTAMENTOS.values()}
+)
+
+
+def _primer_nombre_limpiado(full_name: str) -> str | None:
+    """Devuelve el primer token de full_name que NO sea un topónimo conocido.
+    Si TODOS los tokens son topónimos (o no hay tokens), devuelve None para que
+    quien llama sepa que no se puede responder con confianza."""
+    tokens = full_name.strip().split()
+    for token in tokens:
+        if _sin_tildes(token) not in TOPONIMOS:
+            return token
+    return None
+
+
 def resolver_pregunta(pregunta: str, full_name: str | None) -> str | None:
     """
     Intenta resolver la pregunta de verificación de Procuraduría.
@@ -59,7 +80,7 @@ def resolver_pregunta(pregunta: str, full_name: str | None) -> str | None:
     # De aquí en adelante, todas dependen de full_name
     if not full_name:
         return None
-    primer_nombre = full_name.strip().split()[0]
+    primer_nombre = _primer_nombre_limpiado(full_name)
 
     # 3. Primeros N dígitos del documento: se resuelve fuera de esta función
     #    (requiere el número de documento, no el nombre) — ver resolver_pregunta_completa
@@ -70,13 +91,13 @@ def resolver_pregunta(pregunta: str, full_name: str | None) -> str | None:
 
     # 5. Cantidad de letras del primer nombre
     if "CANTIDAD DE LETRAS" in texto:
-        return str(len(primer_nombre))
+        return None if primer_nombre is None else str(len(primer_nombre))
 
     # 6. Primeras N letras del primer nombre
     m = re.search(r"PRIMERAS?\s+(\w+)\s+LETRAS", texto)
     if m:
         n = NUMEROS_TEXTO.get(m.group(1).lower())
-        if n:
+        if n and primer_nombre is not None:
             return primer_nombre[:n]
 
     return None

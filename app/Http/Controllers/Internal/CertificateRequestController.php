@@ -27,6 +27,7 @@ class CertificateRequestController extends Controller
 
             $updateData['status'] = 'success';
             $updateData['pdf_path'] = $path;
+            $updateData['pdf_generated_at'] = now();
             $updateData['error_message'] = null;
         } else {
             $updateData['status'] = 'failed';
