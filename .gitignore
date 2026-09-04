@@ -26,8 +26,14 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 
+__pycache__/
+*.py[cod]
+.pytest_cache/
+automation/test_worker.cpython-*.pyc
+
 automation/.env
 automation/venv/
+automation/test_data.local.json
 automation/*.pdf
 automation/*.png
 automation/*.html

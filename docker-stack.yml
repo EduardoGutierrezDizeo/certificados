@@ -1,0 +1,150 @@
+# Stack desplegable con docker swarm (docker stack deploy -c docker-stack.yml certicheck).
+#
+# Adapta docker-compose.yml al formato Swarm: aquí NO funcionan container_name,
+# depends_on con condición de healthcheck (compose-only) ni --scale; el número de
+# réplicas del worker se controla con deploy.replicas y docker service scale.
+#
+# NOTA de despliegue: usa la red overlay que Docker Swarm crea automáticamente a
+# partir de la red `certicheck`; dentro de ella el worker resuelve el Redis por el
+# NOMBRE DE SERVICIO `redis` (no por container_name).
+#
+# ADVERTENCIA: este archivo es el entorno de prueba. Trae DRY_RUN=true para no
+# tocar portales reales. Para producción hay que quitar DRY_RUN / ponerlo en
+# false y ajustar MAX_CONCURRENCY_* y los recursos a los portales reales.
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - certicheck
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256M
+        reservations:
+          cpus: "0.05"
+          memory: 32M
+
+  # Worker de scraping. Se escala con: docker service scale certicheck_worker=N
+  # Cada réplica es un proceso idéntico e independiente que comparte el mismo
+  # Redis y aplica el semáforo distribuido GLOBAL por sitio (no por réplica).
+  # Autoescalador del worker. Mide periódicamente LLEN certificate_jobs y ajusta
+  # las réplicas de certicheck_worker entre MIN_REPLICAS y MAX_REPLICAS con
+  # umbrales + cooldown (política y defaults en automation/autoscaler.py y README).
+  #
+  #   monta /var/run/docker.sock (read-only) para ejecutar `docker service scale`
+  #   => acceso equivalente a root sobre el host Docker: credencial privilegiada.
+  #   replicas queda fija en 1: el autoescalador solo escala certicheck_worker.
+  autoscaler:
+    image: certificados-autoscaler:latest
+    restart: unless-stopped
+    stop_grace_period: 30s
+    environment:
+      REDIS_HOST: "redis"
+      REDIS_PORT: "6379"
+      QUEUE_NAME: "certificate_jobs"
+      WORKER_SERVICE_NAME: "certicheck_worker"
+      AUTOSCALE_INTERVAL_SECONDS: "15"
+      SCALE_UP_THRESHOLD: "10"
+      SCALE_UP_STABLE_CYCLES: "2"
+      SCALE_DOWN_THRESHOLD: "1"
+      SCALE_DOWN_STABLE_CYCLES: "4"
+      REPLICAS_STEP_UP: "1"
+      REPLICAS_STEP_DOWN: "1"
+      MIN_REPLICAS: "1"
+      MAX_REPLICAS: "8"
+      SCALE_COOLDOWN_SECONDS: "60"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - certicheck
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+        reservations:
+          cpus: "0.01"
+          memory: 16M
+
+  worker:
+    image: certificados-worker:latest
+    restart: unless-stopped
+    # Debe ser >= SHUTDOWN_WAIT_SECONDS: Swarm envía SIGTERM al escalar hacia
+    # abajo y esperaría stop_grace_period (default 10s) antes de SIGKILL; con
+    # este valor el shutdown ordenado (drenaje + reencolado) tiene tiempo de
+    # completarse sin perder jobs.
+    stop_grace_period: 120s
+    environment:
+      REDIS_HOST: "redis"
+      REDIS_PORT: "6379"
+      QUEUE_NAME: "certificate_jobs"
+      LARAVEL_BASE_URL: "http://host.docker.internal:8000"
+      INTERNAL_API_KEY: "${INTERNAL_API_KEY:-}"
+      WORKER_POOL_SIZE: "10"
+      MAX_CONCURRENCY_RNMC: "2"
+      MAX_CONCURRENCY_CONTRALORIA: "2"
+      MAX_CONCURRENCY_POLICIA_JUDICIAL: "2"
+      MAX_CONCURRENCY_PROCURADURIA: "1"
+      SHUTDOWN_WAIT_SECONDS: "60"
+      MAX_REQUEUE_ATTEMPTS: "3"
+      DRY_RUN: "true"
+      DRY_RUN_DURATION_SECONDS: "2"
+    # Permitir que el worker acceda al host (donde correría Laravel en desarrollo).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - certicheck
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      # Recursos por réplica, dimensionados con medición real:
+      #   - Baseline python (+ OS de la imagen Playwright): ~9 MB.
+      #   - Un chromium headless activo (medido con about:blank): ~672 MB.
+      # Reserva: 1GB -> cubre el baseline y al menos un scrape real cómodo.
+      # Límite:  4GB -> headroom para varios chromium concurrentes dentro de una
+      #                réplica sin riesgo de OOM en la carga típica (los límites
+      #                globales por sitio acotan la concurrencia real de scrapes).
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+        reservations:
+          cpus: "0.25"
+          memory: 1G
+
+volumes:
+  redis-data:
+
+networks:
+  certicheck:
+    driver: overlay

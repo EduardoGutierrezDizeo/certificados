@@ -1,0 +1,15 @@
+# Override SOLO para verificación/concurrencia en pruebas locales.
+# Nunca debe usarse en producción: activa DRY_RUN (no lanza Playwright, no toca
+# portales reales y no reporta a Laravel) y baja el límite de RNMC a 2 para
+# demostrar que el semáforo distribuido limita GLOBALMENTE entre réplicas.
+#
+# docker compose up -d --scale worker=2   (usa este override automáticamente)
+services:
+  worker:
+    environment:
+      DRY_RUN: "true"
+      DRY_RUN_DURATION_SECONDS: "2"
+      MAX_CONCURRENCY_RNMC: "2"
+      MAX_CONCURRENCY_CONTRALORIA: "2"
+      MAX_CONCURRENCY_POLICIA_JUDICIAL: "2"
+      MAX_CONCURRENCY_PROCURADURIA: "1"

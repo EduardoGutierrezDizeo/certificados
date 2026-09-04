@@ -1,0 +1,21 @@
+# Imagen del autoescalador de CertiCheck. LIVIANA a propósito: solo necesita
+# redis-py y el SDK de Docker (NO Playwright/Chromium).
+#
+# ADVERTENCIA: el contenedor monta /var/run/docker.sock (read-only) para ejecutar
+# `docker service scale`. Ese acceso equivale a root sobre el host Docker: tratarlo
+# como credencial privilegiada (ver README).
+FROM python:3.13-alpine
+
+# Sin .pyc y stdout sin buffer (logs en tiempo real dentro del contenedor).
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app/automation
+
+# Primero solo las dependencias para aprovechar la caché de capas.
+COPY requirements-autoscaler.txt .
+RUN pip install --no-cache-dir -r requirements-autoscaler.txt
+
+COPY autoscaler.py .
+
+CMD ["python", "autoscaler.py"]
