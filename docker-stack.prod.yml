@@ -1,0 +1,151 @@
+# Stack de PRODUCCIÓN desplegable con docker swarm:
+#   docker stack deploy -c docker-stack.prod.yml certicheck
+#
+# CORRE JUNTO A COOLIFY EN EL MISMO VPS (p.ej. Hetzner CPX31: 4 vCPU / 8GB RAM).
+# Laravel (su Dockerfile) y MySQL corren vía Coolify en el mismo host; este stack
+# aporta SOLO worker de scraping + autoescalador.
+#
+# REDIS: ya NO se define aquí. Lo administra Coolify (su servicio Redis nativo)
+# y lo comparten la app Laravel (Redis::rpush certificate_jobs ...) y este stack.
+# Ambos servicios lo alcanzan por env: REDIS_HOST / REDIS_PORT. Un Redis propio
+# dentro del stack estaba aislado tras la red overlay (sin puerto publicado, por
+# seguridad) y Laravel, que corre fuera del stack, no podía conectarse a él.
+#
+# DIFERENCIAS CON docker-stack.yml (entorno de prueba):
+#   - DRY_RUN queda FIJADO en "false" como literal: NO se lee de variables de
+#     entorno, para que ningún .env ni secret pueda volver a ponerlo en true por
+#     accidente. Si necesitas probar en DRY_RUN usá docker-stack.yml / compose.
+#   - LARAVEL_BASE_URL ya no usa host.docker.internal (solo existe en Docker
+#     Desktop). En el VPS el worker alcanza a Laravel por su URL pública/interna
+#     de Coolify (por ejemplo https://api.tudominio.com o la IP del VPS).
+#   - REDIS_HOST/REDIS_PORT se leen del entorno (obligatorios): apuntan al
+#     hostname interno del servicio Redis administrado por Coolify. En desarrollo
+#     local, docker-compose.yml sigue usando su propio servicio Redis sin cambios.
+#   - Recursos acotados a lo que el CPX31 comparte con Laravel + MySQL: con
+#     MAX_REPLICAS=2 y 2G por réplica, el worker nunca pasa de ~4GB / 2 CPU.
+#   - Este archivo NO tiene relación con docker-compose.override.yml: ese archivo
+#     es SOLO desarrollo local (DRY_RUN=true) y docker stack deploy lo ignora.
+#     Nunca uses docker-compose.override.yml en el VPS.
+services:
+  # Worker de scraping (production). Se escala automáticamente por el autoscaler
+  # entre MIN_REPLICAS y MAX_REPLICAS; NO lo escales a mano aquí.
+  worker:
+    image: certificados-worker:latest
+    # >= SHUTDOWN_WAIT_SECONDS (60s por defecto): Swarm envía SIGTERM al
+    # escalar hacia abajo y esperaría este periodo (default 10s) antes de
+    # SIGKILL; con 120s el shutdown ordenado (drenaje + reencolado) completa
+    # sin perder jobs.
+    stop_grace_period: 120s
+    environment:
+      # Redis administrado por Coolify (obligatorios: fallar el deploy si no
+      # están definidos). Ej. REDIS_HOST=redis (nombre interno del servicio de
+      # Coolify) y REDIS_PORT=6379.
+      REDIS_HOST: "${REDIS_HOST:?Debe definirse REDIS_HOST (hostname interno del Redis de Coolify)}"
+      REDIS_PORT: "${REDIS_PORT:-6379}"
+      QUEUE_NAME: "certificate_jobs"
+      # Obligatorias: fallar el deploy si no están definidas (fail fast).
+      LARAVEL_BASE_URL: "${LARAVEL_BASE_URL:?Debe definirse LARAVEL_BASE_URL (URL de Laravel vía Coolify)}"
+      INTERNAL_API_KEY: "${INTERNAL_API_KEY:?Debe definirse INTERNAL_API_KEY (mismo valor que en Laravel)}"
+      # Opcionales: si no se definen queda vacío y el worker omite ese solucionador
+      # de CAPTCHA (usa CapSolver primero, 2Captcha como fallback).
+      CAPSOLVER_API_KEY: "${CAPSOLVER_API_KEY:-}"
+      TWOCAPTCHA_API_KEY: "${TWOCAPTCHA_API_KEY:-}"
+      # Concurrencia. Defaults razonables por réplica (4+2+2+1 = 9 jobs como
+      # máximo en curso por réplica). Ajustar en Coolify solo con evidencia.
+      WORKER_POOL_SIZE: "${WORKER_POOL_SIZE:-10}"
+      MAX_CONCURRENCY_RNMC: "${MAX_CONCURRENCY_RNMC:-4}"
+      MAX_CONCURRENCY_CONTRALORIA: "${MAX_CONCURRENCY_CONTRALORIA:-2}"
+      MAX_CONCURRENCY_POLICIA_JUDICIAL: "${MAX_CONCURRENCY_POLICIA_JUDICIAL:-2}"
+      MAX_CONCURRENCY_PROCURADURIA: "${MAX_CONCURRENCY_PROCURADURIA:-1}"
+      SHUTDOWN_WAIT_SECONDS: "${SHUTDOWN_WAIT_SECONDS:-60}"
+      MAX_REQUEUE_ATTEMPTS: "${MAX_REQUEUE_ATTEMPTS:-3}"
+      # FIJADO en false a propósito (literal, no interpolado): el worker de
+      # producción SIEMPRE toca los portales reales. DRY_RUN=true queda
+      # reservado al stack de pruebas docker-stack.yml y al compose local.
+      DRY_RUN: "false"
+    networks:
+      - certicheck
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      # Recursos POR RÉPLICA, acotados al VPS compartido (4 vCPU / 8GB).
+      #   Límite:  2G / 1.0 CPU -> con MAX_REPLICAS=2 el worker totaliza
+      #            ~4GB / 2 CPU como máximo, dejando margen para Laravel + MySQL
+      #            que corren en el mismo host vía Coolify.
+      #   Reserva: 512M / 0.25 CPU -> garantiza scheduling incluso si otro
+      #            servicio cargó el host antes de desplegar este stack.
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 2G
+        reservations:
+          cpus: "0.25"
+          memory: 512M
+
+  # Autoescalador del worker. Mide LLEN certificate_jobs en Redis y ajusta las
+  # réplicas de <stack>_worker entre MIN_REPLICAS y MAX_REPLICAS (política en
+  # automation/autoscaler.py). Usa el MISMO Redis administrado por Coolify.
+  #
+  #   ADVERTENCIA DE SEGURIDAD: monta /var/run/docker.sock (read-only) para
+  #   ejecutar el equivalente a `docker service scale`. Ese acceso EQUIVALE a
+  #   permisos root sobre el motor Docker del host. Es una credencial
+  #   privilegiada: este servicio SOLO debe correr en este Swarm, con el socket
+  #   del engine al que quiere escalar, y jamás debe exponerse a redes externas
+  #   ni aislarse con menos privilegios (ej. sin el volumen) porque dejaría de
+  #   funcionar. El montaje read-only reduce la superficie (no puede escribir
+  #   en el socket), pero la API que recibe sigue siendo de administrador.
+  autoscaler:
+    image: certificados-autoscaler:latest
+    stop_grace_period: 30s
+    environment:
+      # Mismo Redis administrado por Coolify que el worker (obligatorio).
+      REDIS_HOST: "${REDIS_HOST:?Debe definirse REDIS_HOST (hostname interno del Redis de Coolify)}"
+      REDIS_PORT: "${REDIS_PORT:-6379}"
+      QUEUE_NAME: "certificate_jobs"
+      # Ajustar "certicheck_worker" si se despliega el stack con otro nombre
+      # (docker stack deploy -c docker-stack.prod.yml <OTRO_NOMBRE>).
+      WORKER_SERVICE_NAME: "certicheck_worker"
+      AUTOSCALE_INTERVAL_SECONDS: "15"
+      SCALE_UP_THRESHOLD: "10"
+      SCALE_UP_STABLE_CYCLES: "2"
+      SCALE_DOWN_THRESHOLD: "1"
+      SCALE_DOWN_STABLE_CYCLES: "4"
+      REPLICAS_STEP_UP: "1"
+      REPLICAS_STEP_DOWN: "1"
+      MIN_REPLICAS: "1"
+      # Techo innegociable ALINEADO con el presupuesto de recursos del VPS:
+      # 2 réplicas × (2G / 1 CPU) = 4GB / 2 CPU. No subir este valor sin
+      # recalcular primero la RAM/CPU disponible para Laravel + MySQL en el host.
+      MAX_REPLICAS: "2"
+      SCALE_COOLDOWN_SECONDS: "60"
+    # Socket read-only: como se documenta arriba, equivale a root sobre el engine.
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - certicheck
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+        reservations:
+          cpus: "0.01"
+          memory: 16M
+
+networks:
+  certicheck:
+    driver: overlay

@@ -1,7 +1,12 @@
-# Override SOLO para verificación/concurrencia en pruebas locales.
-# Nunca debe usarse en producción: activa DRY_RUN (no lanza Playwright, no toca
-# portales reales y no reporta a Laravel) y baja el límite de RNMC a 2 para
-# demostrar que el semáforo distribuido limita GLOBALMENTE entre réplicas.
+# SOLO DESARROLLO LOCAL, NUNCA PRODUCCIÓN.
+# Override que docker compose aplica automáticamente (docker compose up).
+# Activa DRY_RUN=true (no lanza Playwright, no toca portales reales y no reporta
+# a Laravel) y baja el límite de RNMC a 2 para demostrar que el semáforo
+# distribuido limita GLOBALMENTE entre réplicas.
+#
+# Este archivo NO debe copiarse ni referenciarse jamás en el VPS de producción:
+# docker stack deploy (docker-stack.prod.yml) lo ignora por diseño, y si se
+# usara con compose en producción pondría el worker en DRY_RUN sin tocar portales.
 #
 # docker compose up -d --scale worker=2   (usa este override automáticamente)
 services:

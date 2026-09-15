@@ -22,7 +22,7 @@ class CertificateRequestController extends Controller
         if ($validated['status'] === 'success') {
             $path = $request->file('pdf')->store(
                 "certificates/{$certificateRequest->consultation_request_id}",
-                'local'
+                config('filesystems.default')
             );
 
             $updateData['status'] = 'success';

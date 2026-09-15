@@ -216,7 +216,7 @@ class StorageController extends Controller
         }
 
         try {
-            return (int) Storage::disk('local')->size($certificateRequest->pdf_path);
+            return (int) Storage::disk(config('filesystems.default'))->size($certificateRequest->pdf_path);
         } catch (\Throwable $e) {
             return 0;
         }
