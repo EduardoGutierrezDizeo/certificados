@@ -343,23 +343,41 @@ class ConsultationRequestController extends Controller
         $numeroDocumento = $consultationRequest->subject->document_number;
         $zipFileName = "{$numeroDocumento}.zip";
 
-        $zip = new ZipArchive;
-        $zipPath = storage_path("app/{$zipFileName}");
+        $tmpPath = tempnam(sys_get_temp_dir(), 'certicomp');
 
-        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+        if ($tmpPath === false) {
             abort(500, 'No se pudo crear el archivo comprimido');
         }
 
-        foreach ($successfulCerts as $cert) {
-            $fullPath = Storage::path($cert->pdf_path);
-            if (file_exists($fullPath)) {
+        $handedOff = false;
+
+        try {
+            $zip = new ZipArchive;
+
+            if ($zip->open($tmpPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+                abort(500, 'No se pudo crear el archivo comprimido');
+            }
+
+            $disk = Storage::disk(config('filesystems.default'));
+
+            foreach ($successfulCerts as $cert) {
+                if (! $disk->exists($cert->pdf_path)) {
+                    continue;
+                }
+
                 $etiqueta = $etiquetasSitio[$cert->site] ?? $cert->site;
-                $zip->addFile($fullPath, "{$etiqueta}.pdf");
+                $zip->addFromString("{$etiqueta}.pdf", $disk->get($cert->pdf_path));
+            }
+
+            $zip->close();
+
+            $handedOff = true;
+
+            return response()->download($tmpPath, $zipFileName)->deleteFileAfterSend(true);
+        } finally {
+            if (! $handedOff) {
+                @unlink($tmpPath);
             }
         }
-
-        $zip->close();
-
-        return response()->download($zipPath, $zipFileName)->deleteFileAfterSend(true);
     }
 }

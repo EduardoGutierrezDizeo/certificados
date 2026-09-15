@@ -60,7 +60,7 @@ class LawyerStorageService
     {
         foreach ($certificateRequests as $certificateRequest) {
             if ($certificateRequest->pdf_path !== null) {
-                Storage::disk('local')->delete($certificateRequest->pdf_path);
+                Storage::disk(config('filesystems.default'))->delete($certificateRequest->pdf_path);
             }
 
             $certificateRequest->update([

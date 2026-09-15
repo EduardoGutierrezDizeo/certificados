@@ -1,0 +1,47 @@
+# Contexto de build mínimo para el backend Laravel.
+# El worker Python (automation/) tiene su propio Dockerfile (automation/Dockerfile)
+# y no debe copiarse aquí; el worker se despliega con una imagen separada.
+
+# VCS y entorno
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+
+# Dependencias (se instalan dentro de los stages de build)
+node_modules
+vendor
+
+# Salidas de build (public/build se genera en el stage "assets")
+public/build
+
+# Código de prueba y worker (imagen independiente)
+tests
+automation
+
+# Storage: solo directorios con datos de runtime se requieren en la imagen;
+# se recrean y chown-edan en el Dockerfile.
+storage/logs
+storage/framework/cache
+storage/framework/sessions
+storage/framework/testing
+storage/framework/views
+
+# Cachés de tests e instrumentos
+.phpunit.result.cache
+.pytest_cache
+
+# Docs y configs locales irrelevantes en runtime
+DOCS.md
+DOCUMENTACION.md
+README.md
+COMANDOS.txt
+CLAUDE.md
+.mcp.json
+boost.json
+
+# Compose / stacks del entorno (no aplican dentro de la imagen)
+docker-compose.yml
+docker-compose.override.yml
+docker-stack.yml
