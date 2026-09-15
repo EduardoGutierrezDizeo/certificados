@@ -67,7 +67,7 @@
                         <p x-show="cert.status === 'cancelled'" class="text-xs text-carbon/40 mt-0.5">Cancelado</p>
                         <p x-show="cert.status === 'failed'" class="text-xs text-rust mt-0.5"
                             x-text="cert.error_message"></p>
-                        <button x-show="cert.status === 'failed'" @click="retry(cert.id)"
+                        <button x-show="cert.status === 'failed'" @click="regenerarCertificado(cert)"
                             class="inline-flex items-center gap-1 text-xs font-medium text-ink-700 hover:text-brass-600 mt-1">
                             Reintentar
                             <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -76,14 +76,32 @@
                             </svg>
                         </button>
 
-                        <a x-show="cert.status === 'success'" :href="cert.download_url"
-                            class="inline-flex items-center gap-1 text-xs font-medium text-ink-700 hover:text-brass-600 mt-1">
-                            Descargar PDF
-                            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16" />
-                            </svg>
-                        </a>
+                        <template x-if="cert.status === 'success' && cert.has_pdf">
+                            <a :href="cert.download_url"
+                                class="inline-flex items-center gap-1 text-xs font-medium text-ink-700 hover:text-brass-600 mt-1">
+                                Descargar PDF
+                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16" />
+                                </svg>
+                            </a>
+                        </template>
+
+                        <template x-if="cert.status === 'success' && !cert.has_pdf">
+                            <div class="mt-1">
+                                <p class="text-xs text-rust">
+                                    Este certificado se generó antes pero el archivo ya no está disponible — vuelve a generarlo.
+                                </p>
+                                <button @click="regenerarCertificado(cert)"
+                                    class="inline-flex items-center gap-1 text-xs font-medium text-ink-700 hover:text-brass-600 mt-1">
+                                    Regenerar certificado
+                                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </template>
                     </div>
                 </div>
             </template>
@@ -128,6 +146,8 @@
             </template>
         </div>
     </div>
+
+    @include('storage.partials.manage-modal')
 
     <script>
         function consultationProgress(id, initialCertificates) {
@@ -176,25 +196,6 @@
                     }, 3000);
                 },
 
-                async retry(certificateId) {
-                    const cert = this.certificates.find(c => c.id === certificateId);
-                    cert.status = 'processing';
-
-                    try {
-                        await fetch(`/certificate-requests/${certificateId}/retry`, {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRF-TOKEN': this.csrfToken,
-                            },
-                        });
-
-                        this.init();
-                    } catch (e) {
-                        console.error('Error reintentando:', e);
-                        cert.status = 'failed';
-                    }
-                },
-
                 async cancelarGeneracion() {
                     const result = await swalConfirm({
                         title: 'Cancelar generación',
@@ -222,6 +223,51 @@
                         }
                     } catch (e) {
                         console.error('Error cancelando:', e);
+                    }
+                },
+
+                async regenerarCertificado(cert) {
+                    const url = `/consultation-requests/${id}/certificates/${cert.id}/regenerate`;
+
+                    const send = (body) => fetch(url, {
+                        method: 'POST',
+                        headers: { 'X-CSRF-TOKEN': this.csrfToken },
+                        body,
+                    });
+
+                    try {
+                        let res = await send(null);
+
+                        if (res.status === 409) {
+                            const result = await certicheckStorageConflict(res);
+
+                            if (!result.isConfirmed) {
+                                window.dispatchEvent(new CustomEvent('open-manage-modal', {
+                                    detail: { needed: 1 },
+                                }));
+                                return;
+                            }
+
+                            const withConfirmation = new FormData();
+                            withConfirmation.append('confirm_delete_oldest', '1');
+
+                            res = await send(withConfirmation);
+
+                            if (res.status === 409) {
+                                await certicheckStorageConflict(res);
+                                return;
+                            }
+                        }
+
+                        if (!res.ok) {
+                            console.error('Error regenerando certificado:', res.status);
+                            return;
+                        }
+
+                        cert.status = 'processing';
+                        this.init();
+                    } catch (e) {
+                        console.error('Error regenerando certificado:', e);
                     }
                 },
 

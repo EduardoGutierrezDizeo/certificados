@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\CertificateRequest;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 
 class CertificateJobDispatcher
@@ -17,6 +18,8 @@ class CertificateJobDispatcher
     public function dispatch(CertificateRequest $certificateRequest): void
     {
         $payload = $this->buildPayload($certificateRequest);
+
+        Log::info('Certificate job dispatched', $payload);
 
         Redis::rpush(self::QUEUE_NAME, json_encode($payload));
 
@@ -39,6 +42,8 @@ class CertificateJobDispatcher
 
         foreach ($sorted as $certificateRequest) {
             $payload = $this->buildPayload($certificateRequest);
+
+            Log::info('Certificate job dispatched', $payload);
 
             Redis::rpush(self::QUEUE_NAME, json_encode($payload));
 

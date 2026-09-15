@@ -1,0 +1,58 @@
+services:
+  # Redis que ya usa el proyecto. Se define aquí para que el stack sea
+  # reproducible y autocontenido con docker compose. Reutiliza el mismo nombre
+  # de contenedor (certicheck-redis) y el puerto 6379 del proyecto actual.
+  redis:
+    image: redis:7-alpine
+    container_name: certicheck-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - certicheck
+
+  # Worker de scraping. Se escala con: docker compose up -d --scale worker=N
+  # Cada réplica es un proceso idéntico e independiente: consume de la misma
+  # cola Redis (BLPOP) y aplica sus propios semáforos locales por sitio.
+  worker:
+    build:
+      context: ./automation
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_HOST: "certicheck-redis"
+      REDIS_PORT: "6379"
+      QUEUE_NAME: "certificate_jobs"
+      LARAVEL_BASE_URL: "http://host.docker.internal:8000"
+      INTERNAL_API_KEY: "${INTERNAL_API_KEY}"
+      WORKER_POOL_SIZE: "10"
+      MAX_CONCURRENCY_RNMC: "4"
+      MAX_CONCURRENCY_CONTRALORIA: "2"
+      MAX_CONCURRENCY_POLICIA_JUDICIAL: "2"
+      MAX_CONCURRENCY_PROCURADURIA: "1"
+      SHUTDOWN_WAIT_SECONDS: "60"
+      MAX_REQUEUE_ATTEMPTS: "3"
+    deploy:
+      replicas: 1
+    # Permitir que el worker acceda al host (donde corre Laravel con artisan serve)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - certicheck
+
+volumes:
+  redis-data:
+
+networks:
+  certicheck:
+    driver: bridge

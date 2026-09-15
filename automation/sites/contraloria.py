@@ -39,6 +39,10 @@ def consultar(document_type: str, document_number: str, full_name: str | None, i
             page.close()
             return {"status": "failed", "error_message": f"Error resolviendo CAPTCHA: {e}"}
 
+        # Red de seguridad: esperar a que el widget de reCAPTCHA haya inyectado el campo
+        # oculto antes de usarlo. Si el timeout se agota, la excepción se propaga explícita.
+        page.wait_for_selector("#g-recaptcha-response", state="attached", timeout=15000)
+
         page.evaluate(
             "(token) => { document.getElementById('g-recaptcha-response').value = token; }",
             resultado_captcha["code"],

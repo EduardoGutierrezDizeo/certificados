@@ -16,8 +16,16 @@ class CertificateRequest extends Model
         'status',
         'error_message',
         'pdf_path',
+        'pdf_generated_at',
         'duration_seconds',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'pdf_generated_at' => 'datetime',
+        ];
+    }
 
     public function consultationRequest(): BelongsTo
     {

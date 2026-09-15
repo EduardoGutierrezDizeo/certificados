@@ -10,6 +10,7 @@ use App\Http\Controllers\ErrorReportController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SessionController;
+use App\Http\Controllers\StorageController;
 use App\Http\Controllers\SubscriptionController;
 use Illuminate\Support\Facades\Route;
 
@@ -101,8 +102,8 @@ Route::middleware(['auth', 'verified', 'role:abogado', 'single.session', 'terms.
     Route::get('/certificate-requests/{certificateRequest}/download', [ConsultationRequestController::class, 'download'])
         ->name('certificate-requests.download');
 
-    Route::post('/certificate-requests/{certificateRequest}/retry', [ConsultationRequestController::class, 'retry'])
-        ->name('certificate-requests.retry');
+    Route::post('/consultation-requests/{consultationRequest}/certificates/{certificateRequest}/regenerate', [ConsultationRequestController::class, 'regenerateCertificate'])
+        ->name('consultation-requests.certificates.regenerate');
 
     Route::delete('/consultation-requests/{consultationRequest}', [ConsultationRequestController::class, 'destroy'])
         ->name('consultation-requests.destroy');
@@ -118,6 +119,21 @@ Route::middleware(['auth', 'verified', 'role:abogado', 'single.session', 'terms.
 
     Route::get('/consultation-requests', [ConsultationRequestController::class, 'index'])
         ->name('consultation-requests.index');
+
+    Route::get('/storage', [StorageController::class, 'index'])
+        ->name('storage.index');
+
+    Route::get('/storage/data', [StorageController::class, 'data'])
+        ->name('storage.data');
+
+    Route::delete('/storage/certificates/{certificateRequest}', [StorageController::class, 'destroyCertificate'])
+        ->name('storage.certificates.destroy');
+
+    Route::delete('/storage/certificates', [StorageController::class, 'destroyCertificatesBulk'])
+        ->name('storage.certificates.destroy-bulk');
+
+    Route::delete('/storage/consultations/{consultationRequest}', [StorageController::class, 'destroyConsultation'])
+        ->name('storage.consultations.destroy');
 });
 
 require __DIR__.'/auth.php';
