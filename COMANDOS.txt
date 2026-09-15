@@ -1,6 +1,6 @@
 CERTIFICADOS:
 
-docker start certicheck-redis
+docker start certicheck-redis    --->     docker compose up -d redis
 ngrok http 8000
 php artisan serve
 npm run dev
@@ -10,7 +10,6 @@ php artisan schedule:work             --> para el reloj
 
 
 https://mailtrap.io/
-https://comercios.wompi.co/
 
 php artisan admin:create
 

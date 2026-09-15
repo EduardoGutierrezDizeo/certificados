@@ -21,9 +21,14 @@ SITES = ["rnmc", "comptroller", "judicial_police", "attorney_general"]
 @pytest.fixture(autouse=True)
 def _reset_state(monkeypatch):
     """Rebuild the global Redis-backed semaphore with known limits and clear
-    its keys (and the job queue), so each test starts from a predictable state."""
+    its keys (and the job queue), so each test starts from a predictable state.
+
+    Uses a temporary queue name so that real worker.py processes running in
+    background (doing BLPOP on 'certificate_jobs') cannot consume test data."""
+    TEST_QUEUE = "test_queue_pytest_automation"
+    monkeypatch.setattr(worker, "QUEUE_NAME", TEST_QUEUE)
     redis_semaphore.flush_semaphore_keys(TEST_REDIS, SITES)
-    TEST_REDIS.delete(worker.QUEUE_NAME)
+    TEST_REDIS.delete(TEST_QUEUE)
     monkeypatch.setattr(worker, "SEMAPHORE", redis_semaphore.DistributedSemaphore(
         TEST_REDIS,
         config.SITE_CONCURRENCY,
@@ -35,7 +40,7 @@ def _reset_state(monkeypatch):
     monkeypatch.setattr(worker.config, "DRY_RUN_DURATION_SECONDS", 0.01)
     yield
     redis_semaphore.flush_semaphore_keys(TEST_REDIS, SITES)
-    TEST_REDIS.delete(worker.QUEUE_NAME)
+    TEST_REDIS.delete(TEST_QUEUE)
 
 
 def _submit_jobs(executor, payloads):

@@ -5,7 +5,8 @@
     </x-slot>
 
     <div class="max-w-3xl">
-        <form method="POST" action="{{ route('consultation-requests.store') }}" x-data="{ documentType: '' }">
+        <form method="POST" action="{{ route('consultation-requests.store') }}"
+              x-data="consultationForm()" @submit.prevent="submitForm($event)">
             @csrf
 
             <div class="bg-white border border-ink-100 rounded-lg p-6 space-y-6">
@@ -119,4 +120,66 @@
             </div>
         </form>
     </div>
+
+    @include('storage.partials.manage-modal')
+
+    <script>
+        function consultationForm() {
+            return {
+                documentType: '',
+
+                async submitForm(event) {
+                    const form = event.target;
+                    const formData = new FormData(form);
+
+                    try {
+                        const res = await fetch(form.action, { method: 'POST', body: formData });
+
+                        if (res.status === 409) {
+                            const result = await certicheckStorageConflict(res);
+
+                            if (result.isConfirmed) {
+                                const withConfirmation = new FormData(form);
+                                withConfirmation.append('confirm_delete_oldest', '1');
+
+                                const retry = await fetch(form.action, { method: 'POST', body: withConfirmation });
+
+                                if (retry.status === 409) {
+                                    await certicheckStorageConflict(retry);
+                                    return;
+                                }
+
+                                this.followResponse(retry, form);
+                                return;
+                            }
+
+                            window.dispatchEvent(new CustomEvent('open-manage-modal', {
+                                detail: { needed: document.querySelectorAll('input[name="sites[]"]:checked').length },
+                            }));
+                            return;
+                        }
+
+                        this.followResponse(res, form);
+                    } catch (e) {
+                        console.error('Error enviando la consulta:', e);
+                        form.submit();
+                    }
+                },
+
+                followResponse(res, form) {
+                    if (res.redirected) {
+                        window.location.href = res.url;
+                        return;
+                    }
+
+                    if (res.ok) {
+                        window.location.href = res.url || form.action;
+                        return;
+                    }
+
+                    window.location.href = res.url || form.action;
+                },
+            };
+        }
+    </script>
 </x-app-layout>

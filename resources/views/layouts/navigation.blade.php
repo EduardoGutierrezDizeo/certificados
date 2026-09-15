@@ -126,6 +126,18 @@
                 <div class="min-w-0 flex-1">
                     <p class="text-sm font-medium text-white truncate">{{ Auth::user()->name }}</p>
                     <p class="text-xs text-white/50 truncate">{{ Auth::user()->email }}</p>
+                    @if (isset($storageUsed) && isset($storageLimit))
+                        @php
+                            $storagePercent = min(100, (int) round(($storageUsed / max($storageLimit, 1)) * 100));
+                        @endphp
+                        <div class="mt-2 h-1 rounded-full bg-surface/50 overflow-hidden" title="Almacenamiento"
+                            role="progressbar" aria-valuenow="{{ $storagePercent }}" aria-valuemin="0"
+                            aria-valuemax="100">
+                            <div class="h-full rounded-full {{ $storagePercent >= 90 ? 'bg-rust' : 'bg-brass-500' }}"
+                                style="width: {{ $storagePercent }}%"></div>
+                        </div>
+                        <span class="sr-only">Uso de almacenamiento: {{ $storagePercent }}%</span>
+                    @endif
                 </div>
                 <svg class="h-4 w-4 text-white/50 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

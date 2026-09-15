@@ -7,6 +7,7 @@ use App\Models\Subscription;
 use App\Models\SubscriptionPlan;
 use App\Models\User;
 use App\Services\LawyerStorageService;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\RefreshDatabaseWithRoles;
 
@@ -64,6 +65,82 @@ function storagePanelCertificate(ConsultationRequest $consultation, string $site
         'pdf_generated_at' => now(),
     ]);
 }
+
+it('grouped view sorts consultations by date descending by default', function (): void {
+    $olderSubject = storagePanelSubject($this->user, '600000001');
+    $newerSubject = storagePanelSubject($this->user, '600000002');
+
+    $older = storagePanelConsultation($this->user, $olderSubject);
+    $newer = storagePanelConsultation($this->user, $newerSubject);
+
+    $older->forceFill(['created_at' => now()->subDays(2)])->save();
+    $newer->forceFill(['created_at' => now()])->save();
+
+    storagePanelCertificate($older, 'rnmc');
+    storagePanelCertificate($newer, 'rnmc');
+
+    $response = $this->get(route('storage.index', ['view' => 'grouped']));
+
+    $response->assertOk()
+        ->assertSeeInOrder(['600000002', '600000001']);
+});
+
+it('grouped view sorts consultations by date ascending when requested', function (): void {
+    $olderSubject = storagePanelSubject($this->user, '600000003');
+    $newerSubject = storagePanelSubject($this->user, '600000004');
+
+    $older = storagePanelConsultation($this->user, $olderSubject);
+    $newer = storagePanelConsultation($this->user, $newerSubject);
+
+    $older->forceFill(['created_at' => now()->subDays(2)])->save();
+    $newer->forceFill(['created_at' => now()])->save();
+
+    storagePanelCertificate($older, 'rnmc');
+    storagePanelCertificate($newer, 'rnmc');
+
+    $response = $this->get(route('storage.index', ['view' => 'grouped', 'sort' => 'date', 'dir' => 'asc']));
+
+    $response->assertOk()
+        ->assertSeeInOrder(['600000003', '600000004']);
+});
+
+it('individual view sorts certificates by pdf_generated_at descending by default', function (): void {
+    $olderSubject = storagePanelSubject($this->user, '700000001');
+    $newerSubject = storagePanelSubject($this->user, '700000002');
+
+    $olderConsultation = storagePanelConsultation($this->user, $olderSubject);
+    $newerConsultation = storagePanelConsultation($this->user, $newerSubject);
+
+    $olderCert = storagePanelCertificate($olderConsultation, 'rnmc');
+    $newerCert = storagePanelCertificate($newerConsultation, 'comptroller');
+
+    $olderCert->forceFill(['pdf_generated_at' => now()->subDays(2)])->save();
+    $newerCert->forceFill(['pdf_generated_at' => now()])->save();
+
+    $response = $this->get(route('storage.index', ['view' => 'individual']));
+
+    $response->assertOk()
+        ->assertSeeInOrder(['700000002', '700000001']);
+});
+
+it('individual view sorts certificates by pdf_generated_at ascending when requested', function (): void {
+    $olderSubject = storagePanelSubject($this->user, '700000003');
+    $newerSubject = storagePanelSubject($this->user, '700000004');
+
+    $olderConsultation = storagePanelConsultation($this->user, $olderSubject);
+    $newerConsultation = storagePanelConsultation($this->user, $newerSubject);
+
+    $olderCert = storagePanelCertificate($olderConsultation, 'rnmc');
+    $newerCert = storagePanelCertificate($newerConsultation, 'comptroller');
+
+    $olderCert->forceFill(['pdf_generated_at' => now()->subDays(2)])->save();
+    $newerCert->forceFill(['pdf_generated_at' => now()])->save();
+
+    $response = $this->get(route('storage.index', ['view' => 'individual', 'sort' => 'date', 'dir' => 'asc']));
+
+    $response->assertOk()
+        ->assertSeeInOrder(['700000003', '700000004']);
+});
 
 it('grouped view shows complete and incomplete consultations correctly', function (): void {
     $subject = storagePanelSubject($this->user, '111111111');
@@ -170,4 +247,233 @@ it('destroyCertificatesBulk rejects ids that do not belong to the authenticated 
 
     expect($ownCert->fresh()->pdf_path)->not->toBeNull()
         ->and($foreignCert->fresh()->pdf_path)->not->toBeNull();
+});
+
+it('storage.data returns grouped json with used and limit', function (): void {
+    $subject = storagePanelSubject($this->user, '810000001');
+    $consultation = storagePanelConsultation($this->user, $subject);
+    storagePanelCertificate($consultation, 'rnmc');
+
+    $response = $this->getJson(route('storage.data', ['view' => 'grouped']));
+
+    $response->assertOk()
+        ->assertJsonPath('view', 'grouped')
+        ->assertJsonPath('used', 1)
+        ->assertJsonPath('limit', config('certificates.storage_limit'))
+        ->assertJsonCount(1, 'data');
+});
+
+it('storage.data returns individual json with used and limit', function (): void {
+    $subject = storagePanelSubject($this->user, '820000001');
+    $consultation = storagePanelConsultation($this->user, $subject);
+    storagePanelCertificate($consultation, 'rnmc');
+    storagePanelCertificate($consultation, 'comptroller');
+
+    $response = $this->getJson(route('storage.data', ['view' => 'individual']));
+
+    $response->assertOk()
+        ->assertJsonPath('view', 'individual')
+        ->assertJsonPath('used', 2)
+        ->assertJsonPath('limit', config('certificates.storage_limit'))
+        ->assertJsonCount(2, 'data');
+});
+
+it('destroyCertificate returns json with has_space true when needed fits after deletion', function (): void {
+    config(['certificates.storage_limit' => 2]);
+
+    $subject = storagePanelSubject($this->user, '830000001');
+    $consultation = storagePanelConsultation($this->user, $subject);
+    $cert1 = storagePanelCertificate($consultation, 'rnmc');
+    storagePanelCertificate($consultation, 'comptroller');
+
+    $response = $this->deleteJson(route('storage.certificates.destroy', $cert1), ['needed' => 1]);
+
+    $response->assertOk()
+        ->assertJson([
+            'ok' => true,
+            'used' => 1,
+            'limit' => 2,
+            'has_space' => true,
+        ]);
+});
+
+it('destroyCertificate returns json with has_space false when needed does not fit after deletion', function (): void {
+    config(['certificates.storage_limit' => 2]);
+
+    $subject = storagePanelSubject($this->user, '840000001');
+    $consultation = storagePanelConsultation($this->user, $subject);
+    $cert1 = storagePanelCertificate($consultation, 'rnmc');
+    storagePanelCertificate($consultation, 'comptroller');
+
+    $response = $this->deleteJson(route('storage.certificates.destroy', $cert1), ['needed' => 2]);
+
+    $response->assertOk()
+        ->assertJson([
+            'ok' => true,
+            'used' => 1,
+            'limit' => 2,
+            'has_space' => false,
+        ]);
+});
+
+it('destroyConsultation returns json with has_space true when needed fits after deletion', function (): void {
+    config(['certificates.storage_limit' => 2]);
+
+    $subject = storagePanelSubject($this->user, '850000001');
+    $consultation = storagePanelConsultation($this->user, $subject);
+    storagePanelCertificate($consultation, 'rnmc');
+    storagePanelCertificate($consultation, 'comptroller');
+
+    $response = $this->deleteJson(route('storage.consultations.destroy', $consultation), ['needed' => 2]);
+
+    $response->assertOk()
+        ->assertJson([
+            'ok' => true,
+            'used' => 0,
+            'limit' => 2,
+            'has_space' => true,
+        ]);
+});
+
+it('destroyConsultation returns json with has_space false when needed does not fit after deletion', function (): void {
+    config(['certificates.storage_limit' => 2]);
+
+    $subject = storagePanelSubject($this->user, '860000001');
+    $consultation = storagePanelConsultation($this->user, $subject);
+    storagePanelCertificate($consultation, 'rnmc');
+    storagePanelCertificate($consultation, 'comptroller');
+
+    $otherSubject = storagePanelSubject($this->user, '860000002');
+    $otherConsultation = storagePanelConsultation($this->user, $otherSubject);
+    storagePanelCertificate($otherConsultation, 'rnmc');
+
+    $response = $this->deleteJson(route('storage.consultations.destroy', $consultation), ['needed' => 2]);
+
+    $response->assertOk()
+        ->assertJson([
+            'ok' => true,
+            'used' => 1,
+            'limit' => 2,
+            'has_space' => false,
+        ]);
+});
+
+it('destroyCertificatesBulk returns json with has_space true when needed fits after deletion', function (): void {
+    config(['certificates.storage_limit' => 2]);
+
+    $subject = storagePanelSubject($this->user, '870000001');
+    $consultation = storagePanelConsultation($this->user, $subject);
+    $cert1 = storagePanelCertificate($consultation, 'rnmc');
+    storagePanelCertificate($consultation, 'comptroller');
+
+    $response = $this->deleteJson(route('storage.certificates.destroy-bulk'), [
+        'ids' => [$cert1->id],
+        'needed' => 1,
+    ]);
+
+    $response->assertOk()
+        ->assertJson([
+            'ok' => true,
+            'used' => 1,
+            'limit' => 2,
+            'has_space' => true,
+        ]);
+});
+
+it('destroyCertificatesBulk returns json with has_space false when needed does not fit after deletion', function (): void {
+    config(['certificates.storage_limit' => 2]);
+
+    $subject = storagePanelSubject($this->user, '880000001');
+    $consultation = storagePanelConsultation($this->user, $subject);
+    $cert1 = storagePanelCertificate($consultation, 'rnmc');
+    storagePanelCertificate($consultation, 'comptroller');
+
+    $response = $this->deleteJson(route('storage.certificates.destroy-bulk'), [
+        'ids' => [$cert1->id],
+        'needed' => 2,
+    ]);
+
+    $response->assertOk()
+        ->assertJson([
+            'ok' => true,
+            'used' => 1,
+            'limit' => 2,
+            'has_space' => false,
+        ]);
+});
+
+it('destroyCertificatesBulk still redirects when json is not requested', function (): void {
+    $subject = storagePanelSubject($this->user, '890000001');
+    $consultation = storagePanelConsultation($this->user, $subject);
+    $cert = storagePanelCertificate($consultation, 'rnmc');
+
+    $response = $this->delete(route('storage.certificates.destroy-bulk'), [
+        'ids' => [$cert->id],
+    ]);
+
+    $response->assertRedirect(route('storage.index'));
+});
+
+it('grouped view excludes consultations without any stored pdf', function (): void {
+    $subject = storagePanelSubject($this->user, '910000001');
+    $freed = storagePanelConsultation($this->user, $subject);
+    storagePanelCertificate($freed, 'rnmc', false);
+    storagePanelCertificate($freed, 'comptroller', false);
+
+    $keptSubject = storagePanelSubject($this->user, '910000002');
+    $kept = storagePanelConsultation($this->user, $keptSubject);
+    storagePanelCertificate($kept, 'rnmc');
+
+    $response = $this->get(route('storage.index', ['view' => 'grouped']));
+
+    $response->assertOk()
+        ->assertDontSee('910000001')
+        ->assertSee('910000002');
+});
+
+it('grouped view keeps incomplete consultations that still have at least one stored pdf', function (): void {
+    $subject = storagePanelSubject($this->user, '920000001');
+    $incomplete = storagePanelConsultation($this->user, $subject);
+    storagePanelCertificate($incomplete, 'rnmc');
+    storagePanelCertificate($incomplete, 'comptroller', false);
+
+    $response = $this->get(route('storage.index', ['view' => 'grouped']));
+
+    $response->assertOk()
+        ->assertSee('920000001')
+        ->assertSee('Incompleto');
+});
+
+it('storage.data grouped excludes consultations without any stored pdf', function (): void {
+    $subject = storagePanelSubject($this->user, '930000001');
+    $freed = storagePanelConsultation($this->user, $subject);
+    storagePanelCertificate($freed, 'rnmc', false);
+    storagePanelCertificate($freed, 'comptroller', false);
+
+    $keptSubject = storagePanelSubject($this->user, '930000002');
+    $kept = storagePanelConsultation($this->user, $keptSubject);
+    storagePanelCertificate($kept, 'rnmc');
+
+    $response = $this->getJson(route('storage.data', ['view' => 'grouped']));
+
+    $response->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.subject.document_number', '930000002');
+});
+
+it('fully freed consultation still appears in the general consultation history', function (): void {
+    $subject = storagePanelSubject($this->user, '940000001');
+    $consultation = storagePanelConsultation($this->user, $subject);
+    $cert1 = storagePanelCertificate($consultation, 'rnmc');
+    $cert2 = storagePanelCertificate($consultation, 'comptroller');
+
+    app(LawyerStorageService::class)->freeCertificates(new Collection([$cert1, $cert2]));
+
+    expect($cert1->fresh()->pdf_path)->toBeNull()
+        ->and($cert2->fresh()->pdf_path)->toBeNull();
+
+    $response = $this->get(route('consultation-requests.index'));
+
+    $response->assertOk()
+        ->assertSee('940000001');
 });

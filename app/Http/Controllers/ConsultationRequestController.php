@@ -95,10 +95,15 @@ class ConsultationRequestController extends Controller
     {
         $consultationRequest->load('certificateRequests', 'subject');
 
-        $consultationRequest->certificateRequests->transform(fn ($cr) => $cr->setAttribute(
-            'download_url',
-            $cr->status === 'success' ? route('certificate-requests.download', $cr) : null,
-        ));
+        $consultationRequest->certificateRequests->transform(function (CertificateRequest $cr) {
+            $hasPdf = $cr->pdf_path !== null;
+
+            return $cr
+                ->setAttribute('download_url', $cr->status === 'success' && $hasPdf
+                    ? route('certificate-requests.download', $cr)
+                    : null)
+                ->setAttribute('has_pdf', $hasPdf);
+        });
 
         return view('consultation-requests.show', compact('consultationRequest'));
     }
@@ -114,7 +119,8 @@ class ConsultationRequestController extends Controller
                 'site' => $cr->site,
                 'status' => $cr->status,
                 'error_message' => $cr->error_message,
-                'download_url' => $cr->status === 'success'
+                'has_pdf' => $cr->pdf_path !== null,
+                'download_url' => $cr->status === 'success' && $cr->pdf_path !== null
                     ? route('certificate-requests.download', $cr)
                     : null,
             ]),
@@ -141,18 +147,6 @@ class ConsultationRequestController extends Controller
         $nombreDescarga = "{$numeroDocumento} - {$etiqueta}.pdf";
 
         return Storage::download($certificateRequest->pdf_path, $nombreDescarga);
-    }
-
-    public function retry(CertificateRequest $certificateRequest, CertificateJobDispatcher $dispatcher)
-    {
-        $perteneceAlAbogado = $certificateRequest->consultationRequest->lawyer_id === auth()->id();
-        abort_unless($perteneceAlAbogado, 403);
-        abort_unless($certificateRequest->status === 'failed', 422);
-
-        $certificateRequest->update(['status' => 'pending', 'error_message' => null]);
-        $dispatcher->dispatch($certificateRequest);
-
-        return response()->json(['ok' => true]);
     }
 
     public function index(Request $request)

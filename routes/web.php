@@ -102,9 +102,6 @@ Route::middleware(['auth', 'verified', 'role:abogado', 'single.session', 'terms.
     Route::get('/certificate-requests/{certificateRequest}/download', [ConsultationRequestController::class, 'download'])
         ->name('certificate-requests.download');
 
-    Route::post('/certificate-requests/{certificateRequest}/retry', [ConsultationRequestController::class, 'retry'])
-        ->name('certificate-requests.retry');
-
     Route::post('/consultation-requests/{consultationRequest}/certificates/{certificateRequest}/regenerate', [ConsultationRequestController::class, 'regenerateCertificate'])
         ->name('consultation-requests.certificates.regenerate');
 
@@ -125,6 +122,9 @@ Route::middleware(['auth', 'verified', 'role:abogado', 'single.session', 'terms.
 
     Route::get('/storage', [StorageController::class, 'index'])
         ->name('storage.index');
+
+    Route::get('/storage/data', [StorageController::class, 'data'])
+        ->name('storage.data');
 
     Route::delete('/storage/certificates/{certificateRequest}', [StorageController::class, 'destroyCertificate'])
         ->name('storage.certificates.destroy');

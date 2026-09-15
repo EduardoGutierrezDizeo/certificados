@@ -64,7 +64,12 @@
                     <table class="w-full text-sm">
                         <thead class="bg-surface border-b border-ink-100">
                             <tr class="text-left text-xs font-medium text-carbon/50 uppercase tracking-wide">
-                                <th class="px-5 py-3">Fecha</th>
+                                <th class="px-5 py-3">
+                                    <a href="{{ $sortUrl }}" class="inline-flex items-center gap-1 hover:text-ink-700 transition" title="Alternar orden">
+                                        Fecha
+                                        <span class="text-brass-600" aria-hidden="true">{{ $dir === 'asc' ? '↑' : '↓' }}</span>
+                                    </a>
+                                </th>
                                 <th class="px-5 py-3">Persona</th>
                                 <th class="px-5 py-3">Estado</th>
                                 <th class="px-5 py-3">Tamaño</th>
@@ -142,7 +147,12 @@
                                                :checked="isAllSelected()"
                                                class="rounded border-ink-100 text-ink-700 focus:ring-ink-600">
                                     </th>
-                                    <th class="px-5 py-3">Fecha</th>
+                                    <th class="px-5 py-3">
+                                        <a href="{{ $sortUrl }}" class="inline-flex items-center gap-1 hover:text-ink-700 transition" title="Alternar orden">
+                                            Fecha
+                                            <span class="text-brass-600" aria-hidden="true">{{ $dir === 'asc' ? '↑' : '↓' }}</span>
+                                        </a>
+                                    </th>
                                     <th class="px-5 py-3">Persona</th>
                                     <th class="px-5 py-3">Sitio</th>
                                     <th class="px-5 py-3">Tamaño</th>

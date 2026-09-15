@@ -242,3 +242,62 @@ it('regeneration of a certificate that already has a pdf_path returns 422', func
 
     $response->assertStatus(422);
 });
+
+it('show view displays a warning when a certificate has no pdf file', function (): void {
+    $consultation = ConsultationRequest::create([
+        'lawyer_id' => $this->user->id,
+        'subject_id' => Subject::create([
+            'lawyer_id' => $this->user->id,
+            'document_type' => 'CC',
+            'document_number' => '222333444',
+            'full_name' => 'Sin PDF',
+        ])->id,
+        'status' => 'success',
+    ]);
+
+    CertificateRequest::create([
+        'consultation_request_id' => $consultation->id,
+        'site' => 'rnmc',
+        'status' => 'success',
+        'pdf_path' => null,
+        'pdf_generated_at' => now(),
+    ]);
+
+    $response = $this->get(route('consultation-requests.show', $consultation));
+
+    $response->assertOk()
+        ->assertSee('Este certificado se generó antes pero el archivo ya no está disponible — vuelve a generarlo.');
+});
+
+it('freeing space through the storage API lets a retried creation pass without confirmation', function (): void {
+    config(['certificates.storage_limit' => 50]);
+
+    seedStorageCertificates($this->user, 50);
+
+    $service = app(LawyerStorageService::class);
+
+    $oldest = $service->oldestCertificatesToFree($this->user, 1)->first();
+
+    $response = $this->deleteJson(route('storage.certificates.destroy', $oldest), ['needed' => 1]);
+
+    $response->assertOk()
+        ->assertJson([
+            'ok' => true,
+            'used' => 49,
+            'limit' => 50,
+            'has_space' => true,
+        ]);
+
+    expect($service->usedCount($this->user))->toBe(49);
+
+    $retry = $this->post(route('consultation-requests.store'), [
+        'document_type' => 'CC',
+        'document_number' => '111222333',
+        'issuance_date' => '1990-01-01',
+        'sites' => ['rnmc'],
+    ]);
+
+    $retry->assertRedirect();
+
+    expect(ConsultationRequest::where('status', 'pending')->exists())->toBeTrue();
+});
