@@ -295,6 +295,46 @@
             </div>
         </section>
 
+        <!-- Contáctanos -->
+        <section class="bg-surface border-y border-ink-100 py-20">
+            <div class="max-w-6xl mx-auto px-6">
+                <h2 data-reveal class="font-serif text-2xl text-ink-700 mb-2 text-center">Contáctanos</h2>
+                <p data-reveal style="transition-delay:80ms" class="text-sm text-carbon/60 text-center mb-12 max-w-lg mx-auto">
+                    ¿Tienes dudas sobre CertiCheck o necesitas ayuda con una consulta?
+                    Escríbenos y te respondemos lo antes posible.
+                </p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-2xl mx-auto">
+                    <a data-reveal href="tel:+573135997282"
+                       class="group bg-white border border-ink-100 rounded-lg p-5 flex items-center gap-4 hover:border-brass-400 hover:-translate-y-0.5 transition">
+                        <div class="h-9 w-9 rounded-full border-2 border-brass-400 flex items-center justify-center shrink-0">
+                            <svg class="h-4 w-4 text-brass-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5.5A2.5 2.5 0 015.5 3h1.6a1 1 0 01.96.73l.9 3.1a1 1 0 01-.27 1l-1.2 1.2a12.4 12.4 0 005.48 5.48l1.2-1.2a1 1 0 011-.27l3.1.9a1 1 0 01.73.96v1.6A2.5 2.5 0 0118.5 21h-.2C9.4 20.8 3.2 14.6 3 5.7V5.5z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-xs text-carbon/50">Teléfono</p>
+                            <p style="font-family:'IBM Plex Mono', monospace" class="text-sm text-carbon group-hover:text-brass-600 transition">+57 3135997282</p>
+                        </div>
+                    </a>
+
+                    <a data-reveal style="transition-delay:120ms" href="mailto:certicheck@certicheck.site"
+                       class="group bg-white border border-ink-100 rounded-lg p-5 flex items-center gap-4 hover:border-brass-400 hover:-translate-y-0.5 transition">
+                        <div class="h-9 w-9 rounded-full border-2 border-brass-400 flex items-center justify-center shrink-0">
+                            <svg class="h-4 w-4 text-brass-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.5 7l8.5 6 8.5-6" />
+                            </svg>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-xs text-carbon/50">Correo electrónico</p>
+                            <p class="text-sm text-carbon break-all group-hover:text-brass-600 transition">certicheck@certicheck.site</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </section>
+
         <footer class="border-t border-ink-100 py-6">
             <div class="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-carbon/40">
                 <span>CertiCheck — Certificados de antecedentes para abogados en Colombia.</span>
