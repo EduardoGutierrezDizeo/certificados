@@ -69,7 +69,7 @@ def consultar(document_type: str, document_number: str, full_name: str | None, i
                 const body = document.body.innerText.toUpperCase();
                 return body.includes('MEDIDAS CORRECTIVAS') || body.includes('NO TIENE');
             }""",
-            timeout=25000,
+            timeout=60000,
         )
         page.wait_for_timeout(500)
 
