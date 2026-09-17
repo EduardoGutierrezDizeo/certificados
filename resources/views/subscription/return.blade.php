@@ -3,7 +3,7 @@
         <h2 class="font-serif text-2xl text-ink-700">Confirmando tu pago</h2>
     </x-slot>
 
-    <div class="max-w-lg" x-data="paymentReturn({{ $pareceFallido ? 'true' : 'false' }})" x-init="init()">
+    <div class="max-w-lg" x-data="paymentReturn('{{ $estadoInicial }}', '{{ $reference }}')" x-init="init()">
         <div class="bg-white border border-ink-100 rounded-lg p-8 text-center">
 
             <template x-if="state === 'checking'">
@@ -35,6 +35,26 @@
                 </div>
             </template>
 
+            <template x-if="state === 'pendingConfirmation'">
+                <div>
+                    <div class="mx-auto h-14 w-14 rounded-full bg-brass-50 border-2 border-brass text-brass-500 flex items-center justify-center mb-4">
+                        <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <p class="text-sm font-medium text-carbon mb-2">Tu pago está en proceso de verificación de seguridad.</p>
+                    <p class="text-xs text-carbon/50 mb-6">
+                        Tu banco está verificando la transacción con tu tarjeta (3DS), lo que puede tardar unos minutos.
+                        En cuanto se resuelva, recibirás un correo de confirmación y tu cuenta se activará automáticamente:
+                        no necesitas pagar de nuevo.
+                        Puedes cerrar esta página con tranquilidad.
+                    </p>
+                    <a href="{{ route('dashboard') }}" class="inline-flex bg-ink-700 hover:bg-ink-800 text-white text-sm font-medium px-6 py-3 rounded-md transition">
+                        Ir al panel
+                    </a>
+                </div>
+            </template>
+
             <template x-if="state === 'failed'">
                 <div>
                     <div class="mx-auto h-14 w-14 rounded-full bg-rust/10 border-2 border-rust text-rust flex items-center justify-center mb-4">
@@ -54,11 +74,12 @@
 
             <template x-if="state === 'timedOut'">
                 <div>
-                    <p class="text-sm font-medium text-carbon mb-2">Está tardando más de lo normal.</p>
+                    <p class="text-sm font-medium text-carbon mb-2">El pago aún no se confirma.</p>
                     <p class="text-xs text-carbon/50 mb-6">
-                        Si ya pagaste, recibirás la confirmación pronto y podés
-                        <a href="{{ route('dashboard') }}" class="text-ink-700 underline">entrar al panel</a> en un momento.
-                        Si no llegaste a completar el pago, podés intentarlo de nuevo.
+                        Si tu pago está en verificación de seguridad (3DS), puede tardar unos minutos más:
+                        recibirás un correo de confirmación y tu cuenta se activará automáticamente, sin necesidad de pagar otra vez.
+                        <a href="{{ route('dashboard') }}" class="text-ink-700 underline">Puedes entrar al panel</a> mientras tanto.
+                        Solo intenta pagar de nuevo si estás seguro de que la transacción no se completó.
                     </p>
                     <a href="{{ route('subscription.show') }}" class="inline-flex bg-ink-700 hover:bg-ink-800 text-white text-sm font-medium px-6 py-3 rounded-md transition">
                         Reintentar el pago
@@ -69,20 +90,21 @@
     </div>
 
     <script>
-        function paymentReturn(pareceFallido) {
+        function paymentReturn(estadoInicial, reference) {
             return {
-                state: pareceFallido ? 'failed' : 'checking',
+                state: estadoInicial,
                 attempts: 0,
                 timer: null,
 
                 init() {
-                    if (this.state === 'failed') return;
+                    if (this.state !== 'checking') return;
 
                     this.timer = setInterval(async () => {
                         this.attempts++;
                         try {
-                            const res = await fetch('{{ route('subscription.status') }}');
-                            const data = await res.json();
+                            const url = new URL('{{ route('subscription.status') }}');
+                            if (reference) url.searchParams.set('reference', reference);
+                            const data = await (await fetch(url)).json();
                             if (data.active) {
                                 this.state = 'confirmed';
                                 clearInterval(this.timer);

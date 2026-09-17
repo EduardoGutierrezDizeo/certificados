@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Payment;
+use App\Notifications\PaymentConfirmed;
 use App\Services\EpaycoSignatureService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -41,14 +42,18 @@ class EpaycoWebhookController extends Controller
             'Iniciada' => 'pending',
         ];
 
+        $estadoAnterior = $payment->status;
+        $estadoNuevo = $estadoMap[$payload['x_transaction_state'] ?? ''] ?? 'error';
+
         $payment->update([
-            'status' => $estadoMap[$payload['x_transaction_state'] ?? ''] ?? 'error',
+            'status' => $estadoNuevo,
             'gateway_transaction_id' => $payload['x_ref_payco'] ?? null,
             'raw_payload' => $payload,
         ]);
 
-        if ($payment->status === 'approved') {
+        if ($estadoAnterior !== 'approved' && $estadoNuevo === 'approved') {
             $this->activarSuscripcion($payment);
+            $payment->user->notify(new PaymentConfirmed($payment));
         }
 
         return response()->json(['ok' => true]);
