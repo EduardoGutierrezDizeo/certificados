@@ -42,23 +42,49 @@ def _obtener_frame_formulario(page, timeout_segundos=20):
     return None
 
 
-def _esperar_frame_verpdf(page, timeout_segundos=15):
-    """Espera a que aparezca un frame de verpdf.aspx y a que su
-    contenido (#btnDescargar o el link 'aqui') esté listo."""
+def _esperar_resultado_post_export(frame, page, timeout_total=90):
+    """Poll activo tras enviar el formulario de exportación (#btnExportar).
+
+    En vez de depender de un único timeout fijo sobre el overlay de carga
+    ("Consultando por favor espere..."), revisa activamente cada ~700ms si
+    ya ocurrió alguna de las dos resoluciones posibles del portal, hasta
+    agotar `timeout_total` segundos. Esto tolera que el portal de la
+    Procuraduría responda más lento de lo normal sin abandonar antes de
+    tiempo, y sin arriesgarse a esperar indefinidamente si el portal
+    realmente está caído.
+
+    Devuelve (frame_verpdf, error_texto):
+      - (frame, None)  -> el frame de resultados ya está listo con su botón
+      - (None, texto)  -> el portal devolvió un error de validación explícito
+      - (None, None)   -> se agotó el tiempo sin resolución clara (portal lento/caído)
+    """
     inicio = time.time()
-    while time.time() - inicio < timeout_segundos:
-        for frame in page.frames:
-            if "verpdf" in frame.url:
+    while time.time() - inicio < timeout_total:
+        # 1. ¿Ya está el frame de resultados con su botón visible?
+        for f in page.frames:
+            if "verpdf" in f.url:
                 try:
-                    frame.wait_for_selector(
+                    f.wait_for_selector(
                         "#btnDescargar, a:has-text('aqui'), a:has-text('aquí')",
-                        timeout=2000,
+                        timeout=1000,
                     )
-                    return frame
+                    return f, None
                 except Exception:
-                    continue
-        page.wait_for_timeout(300)
-    return None
+                    pass  # el frame existe pero su contenido aún no ha cargado
+
+        # 2. ¿Hay un mensaje de error de validación en el frame del formulario?
+        try:
+            error_texto = frame.locator("#ValidationSummary1").inner_text(timeout=500).strip()
+            if error_texto:
+                return None, error_texto
+        except Exception:
+            pass
+
+        # 3. Ninguna resolución todavía (el overlay "Consultando..." muy
+        #    probablemente sigue visible) -> seguimos esperando.
+        page.wait_for_timeout(700)
+
+    return None, None
 
 
 TEXTO_BOTON = re.compile(
@@ -203,8 +229,8 @@ def consultar(document_type: str, document_number: str, full_name: str | None, i
         )
         page = context.new_page()
 
-        page.goto(URL)
-        page.wait_for_load_state("networkidle")
+        page.goto(URL, timeout=60000, wait_until="domcontentloaded")
+        page.wait_for_load_state("networkidle", timeout=60000)
 
         frame = _obtener_frame_formulario(page)
         if frame is None:
@@ -230,26 +256,30 @@ def consultar(document_type: str, document_number: str, full_name: str | None, i
 
         frame.fill("#txtRespuestaPregunta", respuesta)
         frame.click("#btnExportar")
-        _esperar_spinner(frame, page)
 
-        try:
-            for candidate in [frame, page]:
-                candidate.locator("text=Consultando").wait_for(state="hidden", timeout=30000)
-        except Exception:
-            pass
-        page.wait_for_timeout(1000)
+        frame_verpdf, error_validacion = _esperar_resultado_post_export(frame, page, timeout_total=90)
+
+        if error_validacion:
+            context.close()
+            return {"status": "failed", "error_message": error_validacion}
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         pdf_path = str(TEMP_CERTS_DIR / f"pgn_{document_number}_{timestamp}.pdf")
 
         try:
-            try:
-                page.wait_for_load_state("networkidle", timeout=8000)
-            except Exception:
-                print("[DEBUG] networkidle no se alcanzó, continuando de todas formas")
+            if frame_verpdf is None:
+                debug_path = str(TEMP_CERTS_DIR / f"pgn_debug_{document_number}_{timestamp}.png")
+                page.screenshot(path=debug_path, full_page=True)
+                context.close()
+                return {
+                    "status": "failed",
+                    "error_message": (
+                        "El portal de la Procuraduría no respondió dentro del tiempo esperado "
+                        "(posible saturación del servidor). Se guardó screenshot de debug."
+                    ),
+                }
 
-            frame_verpdf = _esperar_frame_verpdf(page)
-            print(f"[DEBUG] Frame verpdf listo: {frame_verpdf.url if frame_verpdf else None}")
+            print(f"[DEBUG] Frame verpdf listo: {frame_verpdf.url}")
 
             boton_descargar = _buscar_boton_descarga(page)
             if boton_descargar is None:
